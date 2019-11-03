@@ -34,6 +34,7 @@ import json
 from tngsdk.benchmark.logger import TangoLogger
 from tngsdk.benchmark.helper import ensure_dir
 from tngsdk.benchmark.pdriver.vimemu import VimEmuDriver
+from tngsdk.benchmark.pdriver.osm import OsmDriver
 
 LOG = TangoLogger.getLogger(__name__)
 
@@ -60,8 +61,11 @@ class Executor(object):
                 self.pd = self._load_pdriver(t)
 
     def _load_pdriver(self, t):
+        # TODO: Load osm pdriver here
         if t.get("pdriver") == "vimemu":
             return VimEmuDriver(self.args, t.get("pdriver_config"))
+        elif t.get("pdriver") == "osm":
+            return OsmDriver(self.args, t.get("pdriver_config"))
         else:
             raise BaseException("Platform driver '{}' not supported."
                                 .format(t.get("pdriver")))
@@ -80,7 +84,8 @@ class Executor(object):
             "run_id": ec.run_id,
             "parameter": ec.parameter,
             "project_path": ec.project_path,
-            "package_path": ec.package_path
+            # "package_path": ec.package_path #TODO This statement is for VIMEMU but is creating problem for OSM,
+            # find some workaround
         }
         with open(dst_path, "w") as f:
             json.dump(data, f)

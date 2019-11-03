@@ -37,9 +37,10 @@ from tngsdk.benchmark import main as bench_main
 
 
 def main():
-    args = ["-p", "examples/peds/ped_suricata_tp_small.yml",
+    args = ["-p", "examples-osm/peds/ped_example_vnf.yml",
             "--ibbd", "/tmp/bds",
-            "--config", "config.yml"]
+            "--generator", "osm",
+            "--config", ".tng-bench.conf"]
     bench_main(args)
 
 

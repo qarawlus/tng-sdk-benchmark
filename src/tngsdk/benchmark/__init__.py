@@ -39,10 +39,13 @@ import time
 import shutil
 import subprocess
 from tngsdk.benchmark.experiment import ServiceExperiment, FunctionExperiment
+from tngsdk.benchmark.osm_experiment import OSMFunctionExperiment, OSMServiceExperiment
 from tngsdk.benchmark.generator.sonata \
-                import SonataServiceConfigurationGenerator
+    import SonataServiceConfigurationGenerator
 from tngsdk.benchmark.generator.tango \
-                import TangoServiceConfigurationGenerator
+    import TangoServiceConfigurationGenerator
+from tngsdk.benchmark.generator.osm \
+    import OSMServiceConfigurationGenerator
 from tngsdk.benchmark.executor import Executor
 from tngsdk.benchmark.helper import read_yaml, get_prometheus_path
 from tngsdk.benchmark.ietf import IetfBmwgVnfBD_Generator
@@ -151,7 +154,7 @@ class ProfileManager(object):
             self.logger.info("Overwriting old results: {}"
                              .format(self.args.result_dir))
             shutil.rmtree(self.args.result_dir)
-            # also clean prometheus data (if present, rquires sudo)
+            # also clean prometheus data (if present, requires sudo)
             if not self.args.no_prometheus:
                 try:
                     pm_path = get_prometheus_path()
@@ -187,8 +190,9 @@ class ProfileManager(object):
             print("Skipping population: --no-population")
             return
         # try to load PED file
+        # TODO: Make compatible with OSM
         self.ped = self._load_ped_file(self.args.ped)
-        self._validate_ped_file(self.ped)
+        self._validate_ped_file(self.ped)  # TODO: Make compatible with OSM
         # load and populate experiment specifications
         (self.service_experiments,
          self.function_experiments) = (
@@ -199,8 +203,10 @@ class ProfileManager(object):
         cgen = None
         if self.args.service_generator == "sonata":
             cgen = SonataServiceConfigurationGenerator(self.args)
-        if self.args.service_generator == "eu.5gtango":
+        elif self.args.service_generator == "eu.5gtango":
             cgen = TangoServiceConfigurationGenerator(self.args)
+        elif self.args.service_generator == "osm":
+            cgen = OSMServiceConfigurationGenerator(self.args)
         else:
             self.logger.error(
                 "Unknown service configuration generator '{0}'. Exit 1."
@@ -224,13 +230,26 @@ class ProfileManager(object):
         #    .run_id
         #    .project_path
         #    .package_path
-        self.cgen.generate(
-            os.path.join(  # ensure that the reference is an absolute path
-                 os.path.dirname(
-                     self.ped.get("ped_path", "/")),
-                 self.ped.get("service_package")),
-            self.function_experiments,
-            self.service_experiments)
+        if self.args.service_generator == "osm":
+            self.cgen.generate(
+                os.path.join(  # ensure that the reference is an absolute path
+                    os.path.dirname(
+                        self.ped.get("ped_path", "/")),
+                    self.ped.get("service_package")),
+                os.path.join(  # ensure that the reference is an absolute path
+                    os.path.dirname(
+                        self.ped.get("ped_path", "/")),
+                    self.ped.get("function_package")),
+                self.function_experiments,
+                self.service_experiments)
+        else:
+            self.cgen.generate(
+                os.path.join(  # ensure that the reference is an absolute path
+                    os.path.dirname(
+                        self.ped.get("ped_path", "/")),
+                    self.ped.get("service_package")),
+                self.function_experiments,
+                self.service_experiments)
         # display generator statistics
         if not self.args.no_display:
             self.cgen.print_generation_and_packaging_statistics()
@@ -333,23 +352,42 @@ class ProfileManager(object):
         service_experiments = list()
         function_experiments = list()
 
-        # service experiments
-        for e in input_ped.get("service_experiments", []):
-            if e.get("disabled"):
-                continue  # skip disabled experiments
-            e_obj = ServiceExperiment(
-                self.args, e, input_ped.get("service_package"))
-            e_obj.populate()
-            service_experiments.append(e_obj)
+        if self.args.service_generator == 'osm':
+            # service experiments
+            for e in input_ped.get("service_experiments", []):
+                if e.get("disabled"):
+                    continue  # skip disabled experiments
+                e_obj = OSMServiceExperiment(
+                    self.args, e, input_ped.get("function_package"))
+                e_obj.populate()
+                service_experiments.append(e_obj)
 
-        # function experiments
-        for e in input_ped.get("function_experiments", []):
-            if e.get("disabled"):
-                continue  # skip disabled experiments
-            e_obj = FunctionExperiment(
-                self.args, e, input_ped.get("service_package"))
-            e_obj.populate()
-            function_experiments.append(e_obj)
+            # function experiments
+            for e in input_ped.get("function_experiments", []):
+                if e.get("disabled"):
+                    continue  # skip disabled experiments
+                e_obj = OSMFunctionExperiment(
+                    self.args, e, input_ped.get("function_package"))
+                e_obj.populate()
+                function_experiments.append(e_obj)
+        else:
+            # service experiments
+            for e in input_ped.get("service_experiments", []):
+                if e.get("disabled"):
+                    continue  # skip disabled experiments
+                e_obj = ServiceExperiment(
+                    self.args, e, input_ped.get("function_package"))
+                e_obj.populate()
+                service_experiments.append(e_obj)
+
+            # function experiments
+            for e in input_ped.get("function_experiments", []):
+                if e.get("disabled"):
+                    continue  # skip disabled experiments
+                e_obj = FunctionExperiment(
+                    self.args, e, input_ped.get("function_package"))
+                e_obj.populate()
+                function_experiments.append(e_obj)
 
         return service_experiments, function_experiments
 
@@ -467,7 +505,7 @@ def parse_args(manual_args=None,
 
     parser.add_argument(
         "--hold",
-        help=("Stop when experiment is started and" +
+        help=("Stop when experiment is started and"
               " wait for user input (helps for debugging)."),
         required=False,
         default=False,
@@ -476,7 +514,7 @@ def parse_args(manual_args=None,
 
     parser.add_argument(
         "--max-experiments",
-        help=("Maximum number of experiments to generate" +
+        help=("Maximum number of experiments to generate"
               " irrespective of PED def. (helps for debugging)."),
         required=False,
         default=None,
@@ -493,7 +531,7 @@ def parse_args(manual_args=None,
     parser.add_argument(
         "--generator",
         help="Service configuration generator to be used."
-        + " Default: 'eu.5gtango'",
+        + " Default: 'osm'",
         required=False,
         default="eu.5gtango",
         dest="service_generator")
