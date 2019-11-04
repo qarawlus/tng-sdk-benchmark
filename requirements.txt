@@ -11,8 +11,8 @@ docker
 numpy==1.16
 pandas==0.24
 flatten-dict
-osmclient
 scp
+python-magic
 pyangbind
 tngsdk.project
 tngsdk.package
