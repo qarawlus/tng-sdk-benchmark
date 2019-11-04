@@ -98,7 +98,7 @@ class OsmDriver(object):
         self.nsi_uuid = (self.conn_mgr.client.nsd.get(ec.experiment.name).get('_id'))
         # Instantiate the NSD
         # TODO Remove hardcoded VIM account name
-        self.conn_mgr.client.ns.create(self.nsi_uuid, ec.name, 'OS-DS-BF9', wait=True)
+        self.conn_mgr.client.ns.create(self.nsi_uuid, ec.name, self.config.get('VIM_name'), wait=True)
 
         ns = self.conn_mgr.client.ns.get(ec.name)  # TODO Remove dependency of null NS instances present in OSM
         for vnf_ref in ns.get('constituent-vnfr-ref'):
@@ -132,6 +132,7 @@ class OsmDriver(object):
         time_warmup = int(ec.parameter['ep::header::all::time_warmup'])
         LOG.debug(f'Warmup time: Sleeping for {time_warmup}')
         time.sleep(time_warmup)
+        # TODO: Modularize this and remove the for loop. 
         for ex_p in ec.experiment.experiment_parameters:
             cmd_start = ex_p['cmd_start']
             function = ex_p['function']
@@ -143,22 +144,29 @@ class OsmDriver(object):
                 login_uname = vnf_username
                 login_pass = vnf_password
 
+            LOG.info(f"Connecting SSH to {function} at IP:{self.ip_addresses[function]['mgmt']}")
             while not self._ssh_connect(function, self.ip_addresses[function]['mgmt'], username=login_uname,
                                         password=login_pass):
-                # Keep looping until a connection is there
+                # Keep looping until a connection is established
                 continue
-
-            LOG.info(f"Executing start command {cmd_start}")
             global PATH_SHARE
+            LOG.info(f'Creating {PATH_SHARE} folder at {function}') 
             PATH_SHARE = os.path.join('/', 'home', login_uname, PATH_SHARE)
             stdin, stdout, stderr = self.ssh_clients[function].exec_command(
                 f'mkdir {PATH_SHARE}')
+            time.sleep(1)
+            LOG.info(f"Executing start command {cmd_start} at {function}")
             stdin, stdout, stderr = self.ssh_clients[function].exec_command(
                 f'{cmd_start} &> {PATH_SHARE}/{PATH_CMD_START_LOG} &')
 
             LOG.info(stdout)
 
     def _ssh_connect(self, function_name, ip_address, username, password):
+        """
+        Connect to SSH server of `function_name` at `ip_address` using `username` and `password`
+        TODO: Handle paramiko level logs, remove unwanted error log messages.
+        """
+
         try:
             self.ssh_clients[function_name] = paramiko.SSHClient()
             self.ssh_clients[function_name].set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -175,6 +183,10 @@ class OsmDriver(object):
         return True
 
     def teardown_experiment(self, ec):
+        """
+        Execute stop commands at VMs and collect logs
+        """
+
         # Sleep for experiment duration
         experiment_duration = int(ec.parameter['ep::header::all::time_limit'])
         LOG.info(f'Experiment duration: Sleeping for {experiment_duration} before stopping')
@@ -190,13 +202,12 @@ class OsmDriver(object):
             self._collect_experiment_results(ec, function)
             LOG.info(stdout)
         LOG.info("Sleeping for 20 before destroying NS")
-        time.sleep(20)
         self.conn_mgr.client.ns.delete(ec.name, wait=True)
         self.conn_mgr.client.nsd.delete(self.nsd_id)
         self.conn_mgr.client.vnfd.delete(self.vnfd_id)
         LOG.info("Deleted service: {}".format(self.nsi_uuid))
 
-    def teardown_platform(self, ec):
+    def teardown_platform(self):
         # self.conn_mgr.client.vim.delete("trial_vim")
         pass
 
@@ -204,7 +215,10 @@ class OsmDriver(object):
         pass
 
     def _collect_experiment_results(self, ec, function):
-        LOG.info("Collecting experiment results ...")
+        """
+        SCP into `function` and collect `PATH_SHARE` folder
+        """
+        LOG.info(f"Collecting experiment results from {function}")
         remote_dir = f'{PATH_SHARE}/'
         # generate result paths
         dst_path = os.path.join(self.args.result_dir, ec.name)
