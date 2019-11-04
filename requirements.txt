@@ -14,5 +14,6 @@ pandas
 flatten-dict
 scp
 python-magic
-git+https://github.com/sonata-nfv/tng-sdk-package#egg=tngsdk.package
-git+https://github.com/sonata-nfv/tng-sdk-project#egg=tngsdk.project
+pyangbind
+tngsdk.project
+tngsdk.package
