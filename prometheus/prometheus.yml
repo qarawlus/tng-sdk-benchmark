@@ -1,74 +1,22 @@
-#  Copyright (c) 2019 SONATA-NFV, 5GTANGO, Paderborn University
-# ALL RIGHTS RESERVED.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-# Neither the name of the SONATA-NFV, 5GTANGO, Paderborn University
-# nor the names of its contributors may be used to endorse or promote
-# products derived from this software without specific prior written
-# permission.
-#
-# This work has been performed in the framework of the SONATA project,
-# funded by the European Commission under Grant number 671517 through
-# the Horizon 2020 and 5G-PPP programmes. The authors would like to
-# acknowledge the contributions of their colleagues of the SONATA
-# partner consortium (www.sonata-nfv.eu).
-#
-# This work has also been performed in the framework of the 5GTANGO project,
-# funded by the European Commission under Grant number 761493 through
-# the Horizon 2020 and 5G-PPP programmes. The authors would like to
-# acknowledge the contributions of their colleagues of the SONATA
-# partner consortium (www.5gtango.eu).
-
 global:
   scrape_interval:     2s # By default, scrape targets every 15 seconds.
 
 scrape_configs:
-  # The job name is added as a label `job=<job_name>` to any timeseries scraped from this config.
-  #- job_name: 'prometheus'
-  #  scrape_interval: 5s
-  #  static_configs:
-  #    - targets: ['localhost:9090']
-  - job_name: 'executor-node'
+  # static test - works
+  - job_name: 'backflip1-node'
     static_configs:
-      - targets: ['fgcn-tango-5.cs.upb.de:9100']
-  #- job_name: 'executor-docker'
-  #  static_configs:
-  #    - targets: ['fgcn-peuster.cs.upb.de:9101']
-  - job_name: 'executor-cadvisor'
-    static_configs:
-      - targets: ['fgcn-tango-5.cs.upb.de:9102']
-  - job_name: 'custom-vnf0'
-    static_configs:
-      - targets: ['fgcn-tango-5.cs.upb.de:9110']
-  #- job_name: 'custom-vnf1'
-  #  static_configs:
-  #    - targets: ['fgcn-tango-5.cs.upb.de:9111']
-  #- job_name: 'custom-vnf2'
-  #  static_configs:
-  #    - targets: ['fgcn-tango-5.cs.upb.de:9112']
+      - targets: ['fgcn-backflip1.cs.uni-paderborn.de:9100']
 
-  # todo - remove Hardcodin
-  #Scrape OpenStack instances
-  - job_name: 'openstack'
+  # Dynamic test - works
+  - job_name: 'openstack-nova'
     openstack_sd_configs:
-      - identity_endpoint: http://fgcn-of-2.cs.upb.de/horizon/identity
-        username: admin
-        project_name: admin
-        password: ADMIN_PASS
-        role: instance
-        region: RegionOne
-        domain_name: Default
+    - identity_endpoint: http://fgcn-backflip9.cs.uni-paderborn.de/identity
+      project_name: admin
+      username: admin
+      password: admin
+      role: instance
+      region: RegionOne
+
     relabel_configs:
       # Keep only active instances
       - source_labels: [__meta_openstack_instance_status]

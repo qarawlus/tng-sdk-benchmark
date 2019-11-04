@@ -110,3 +110,13 @@ sudo addgroup nobody
 sudo usermod -aG nobody nobody
 sudo chown nobody:nobody prometheus-data
 ```
+
+## Tng-bench demo run
+
+```
+sudo /home/haydar/tng-sdk-benchmark/venv/bin/tng-bench -p examples-osm/peds/ped_example_vnf.yml --ibbd /tmp/bds --generator osm --no-result --config .tng-bench.conf
+
+# THIS BIT!!!1!
+user: ${CURRENT_UID}
+CURRENT_UID=$(id -u):$(id -g) docker-compose up
+```
