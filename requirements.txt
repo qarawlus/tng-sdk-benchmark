@@ -16,3 +16,4 @@ python-magic
 pyangbind
 tngsdk.project
 tngsdk.package
+pycurl
