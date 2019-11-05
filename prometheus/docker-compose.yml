@@ -38,10 +38,12 @@
 version: '3.3'
 services:
   prometheus:
-    image: prom/prometheus:latest
+    # build:
+    #   context: .
+    image: prom/prometheus
     volumes:
       - ./prometheus.yml/:/etc/prometheus/prometheus.yml
-      - ./prometheus-data:/prometheus/storage
+      - ./prometheus-data:/prometheus/storage:rw
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus/storage'
@@ -54,6 +56,10 @@ services:
     # networks:
     #   - tng-bench-mon
     restart: always
+    user: ${CURRENT_UID}
+
+# volumes:
+#   prometheus-data: {}
 
 # Custom network
 # networks:
