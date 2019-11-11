@@ -2,7 +2,7 @@
 '''
 Use this script as follows on 'openstack' machine: 
 cd
-wget https://raw.githubusercontent.com/CN-UPB/tng-sdk-benchmark/dev/release_ips.py #temporary
+wget -O release_ips.py https://raw.githubusercontent.com/CN-UPB/tng-sdk-benchmark/dev/release_ips.py #temporary
 printf "source /opt/stack/devstack/accrc/admin/admin\npython release_ips.py \n rm floating_ip_list.yaml \n" > release_ips.sh
 chmod +x release_ips.sh
 (crontab -l && echo "* * * * * /bin/bash ~/release_ips.sh") | crontab - #adding a cronjob
