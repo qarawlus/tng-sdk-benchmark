@@ -12,5 +12,3 @@ systemctl daemon-reload
 systemctl start node_exporter
 # systemctl status node_exporter
 systemctl enable node_exporter
-apt update
-apt install apache2
