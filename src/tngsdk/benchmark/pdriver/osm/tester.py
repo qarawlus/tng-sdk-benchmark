@@ -1,9 +1,9 @@
 from tngsdk.benchmark.pdriver.osm.conn_mgr import OSMConnectionManager
 from pprint import pprint
-from osmclient import client
-from osmclient.common.exceptions import ClientException
+from tngsdk.osmclient import client
+from tngsdk.osmclient.common.exceptions import ClientException
 import yaml
-from prettytable import PrettyTable
+# from prettytable import PrettyTable
 import tarfile
 from io import StringIO, BytesIO
 import time
@@ -45,7 +45,10 @@ if password is not None:
 if project is not None:
     kwargs['project'] = project
 myclient = client.Client(host=hostname, sol005=True, **kwargs)
-# myclient.vnfd.create("/home/bhuvan/tng-sdk-benchmark/examples-osm/services/example-ns-1vnf-any/example_vnf.tar.gz")
+try:
+    myclient.vnfd.create("/home/bhuvan/tng-sdk-benchmark/examples-osm/services/example-ns-1vnf-any/example_vnf.tar.gz")
+except ClientException as e:
+    print(e)
 # # myclient.vnfd.create("hackfest_cloudinit_vnf.tar.gz")
 # # Begin tar.gzip yaml extractor
 # # Haydar
@@ -88,22 +91,35 @@ myclient = client.Client(host=hostname, sol005=True, **kwargs)
 # # pprint.pprint(vnfd_name)
 # # print(type(vnfd_name))
 # vnfd_updated = myclient.vnfd.update("example_vnf", "new_vnfd.tar.gz")
-vim_access={}
-vim_access['vim-type'] = "openstack"
-vim_access['description'] = "description"
-vim_access['vim-url'] = "http://fgcn-backflip9.cs.upb.de/identity/v3"
-vim_access['vim-username'] = "admin"
-vim_access['vim-password'] = "admin"
-vim_access['vim-tenant-name'] = "admin"
-
-vim_config = {"use_floating_ip":True}        
-write_yaml('/tmp/temp_vim_config.yaml', vim_config)
-# with open(r'/tmp/temp_vim_config.yaml', 'w') as file:
-#     documents = yaml.dump(vim_config, file)
-vim_access['config']=open(r'/tmp/temp_vim_config.yaml')
-
-myclient.vim.create("trial_vim", vim_access,wait=True)
 
 
-myclient.vim.delete("trial_vim")
 
+
+# vim_access={}
+# vim_access['vim-type'] = "openstack"
+# vim_access['description'] = "description"
+# vim_access['vim-url'] = "http://fgcn-backflip9.cs.upb.de/identity/v3"
+# vim_access['vim-username'] = "admin"
+# vim_access['vim-password'] = "admin"
+# vim_access['vim-tenant-name'] = "admin"
+
+# vim_config = {"use_floating_ip":True}        
+# write_yaml('/tmp/temp_vim_config.yaml', vim_config)
+# # with open(r'/tmp/temp_vim_config.yaml', 'w') as file:
+# #     documents = yaml.dump(vim_config, file)
+# vim_access['config']=open(r'/tmp/temp_vim_config.yaml')
+
+# myclient.vim.create("trial_vim", vim_access,wait=True)
+
+
+# myclient.vim.delete("trial_vim")
+
+
+
+
+#print("TIMER TESTER")
+timeout = time.time() + 20 #in seconds
+while(True):
+    if time.time()>timeout:
+        break
+print("I'm free from the loop")
