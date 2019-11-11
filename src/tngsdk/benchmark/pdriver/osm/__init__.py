@@ -37,6 +37,7 @@ import time
 import os
 import stat
 import scp
+
 from tngsdk.benchmark.helper import write_yaml
 LOG = TangoLogger.getLogger(__name__)
 
@@ -85,22 +86,21 @@ class OsmDriver(object):
         try:
             self.vnfd_id = self.conn_mgr.upload_vnfd_package(ec.vnfd_package_path)
         except Exception:
-            LOG.error("Could not upload vnfd package")
+            LOG.error("Could not upload vnfd package.")
             exit(1)
             # pass  # TODO Handle properly: In a sophisticated (empty) platform, it should give no error.
         try:
             self.nsd_id = self.conn_mgr.upload_nsd_package(ec.nsd_package_path)
         except Exception:
-            LOG.error("Could not upload nsd package")
+            LOG.error("Could not upload nsd package.")
             exit(1)
             # pass  # TODO Handle properly: In a sophisticated (empty) platform, it should give no error.
 
         self.nsi_uuid = (self.conn_mgr.client.nsd.get(ec.experiment.name).get('_id'))
         # Instantiate the NSD
-        # TODO Remove hardcoded VIM account name
         self.conn_mgr.client.ns.create(self.nsi_uuid, ec.name, self.config.get('VIM_name'), wait=True)
 
-        ns = self.conn_mgr.client.ns.get(ec.name)  # TODO Remove dependency of null NS instances present in OSM
+        ns = self.conn_mgr.client.ns.get(ec.name)
         for vnf_ref in ns.get('constituent-vnfr-ref'):
             vnf_desc = self.conn_mgr.client.vnf.get(vnf_ref)
             for vdur in vnf_desc.get('vdur'):
@@ -112,7 +112,6 @@ class OsmDriver(object):
                         self.ip_addresses[vdur.get('vdu-id-ref')]['data'] = interfaces.get('ip-address')
                     else:
                         self.ip_addresses[vdur.get('vdu-id-ref')]['mgmt'] = interfaces.get('ip-address')
-        # print(self.ip_addresses)
         LOG.info("Instantiated service: {}".format(self.nsi_uuid))
 
     def execute_experiment(self, ec):
@@ -145,16 +144,21 @@ class OsmDriver(object):
                 login_pass = vnf_password
 
             LOG.info(f"Connecting SSH to {function} at IP:{self.ip_addresses[function]['mgmt']}")
+            timeout = time.time() + 15*60 #in seconds
             while not self._ssh_connect(function, self.ip_addresses[function]['mgmt'], username=login_uname,
                                         password=login_pass):
                 # Keep looping until a connection is established
+                time.sleep(15)
+                if time.time()>timeout:
+                    LOG.error("Connection timed out: Could not connect using ssh.")
+                    exit(1)
                 continue
             global PATH_SHARE
             LOG.info(f'Creating {PATH_SHARE} folder at {function}') 
             PATH_SHARE = os.path.join('/', 'home', login_uname, PATH_SHARE)
             stdin, stdout, stderr = self.ssh_clients[function].exec_command(
                 f'mkdir {PATH_SHARE}')
-            time.sleep(1)
+            time.sleep(3)
             LOG.info(f"Executing start command {cmd_start} at {function}")
             stdin, stdout, stderr = self.ssh_clients[function].exec_command(
                 f'{cmd_start} &> {PATH_SHARE}/{PATH_CMD_START_LOG} &')
@@ -225,7 +229,7 @@ class OsmDriver(object):
         # for each container collect files from containers
         function_dst_path = os.path.join(dst_path, function)
         os.makedirs(function_dst_path, exist_ok=True)
-
+        time.sleep(3)
         local_dir = f'{function_dst_path}/'
         scp_client = scp.SCPClient(self.ssh_clients[function].get_transport())
 
