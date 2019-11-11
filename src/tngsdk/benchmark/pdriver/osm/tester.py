@@ -117,3 +117,9 @@ except ClientException as e:
 
 
 
+#print("TIMER TESTER")
+timeout = time.time() + 20 #in seconds
+while(True):
+    if time.time()>timeout:
+        break
+print("I'm free from the loop")

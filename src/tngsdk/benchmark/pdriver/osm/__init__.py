@@ -144,17 +144,21 @@ class OsmDriver(object):
                 login_pass = vnf_password
 
             LOG.info(f"Connecting SSH to {function} at IP:{self.ip_addresses[function]['mgmt']}")
+            timeout = time.time() + 15*60 #in seconds
             while not self._ssh_connect(function, self.ip_addresses[function]['mgmt'], username=login_uname,
                                         password=login_pass):
                 # Keep looping until a connection is established
                 time.sleep(15)
+                if time.time()>timeout:
+                    LOG.error("Connection timed out: Could not connect using ssh.")
+                    exit(1)
                 continue
             global PATH_SHARE
             LOG.info(f'Creating {PATH_SHARE} folder at {function}') 
             PATH_SHARE = os.path.join('/', 'home', login_uname, PATH_SHARE)
             stdin, stdout, stderr = self.ssh_clients[function].exec_command(
                 f'mkdir {PATH_SHARE}')
-            time.sleep(1)
+            time.sleep(3)
             LOG.info(f"Executing start command {cmd_start} at {function}")
             stdin, stdout, stderr = self.ssh_clients[function].exec_command(
                 f'{cmd_start} &> {PATH_SHARE}/{PATH_CMD_START_LOG} &')
@@ -225,7 +229,7 @@ class OsmDriver(object):
         # for each container collect files from containers
         function_dst_path = os.path.join(dst_path, function)
         os.makedirs(function_dst_path, exist_ok=True)
-
+        time.sleep(3)
         local_dir = f'{function_dst_path}/'
         scp_client = scp.SCPClient(self.ssh_clients[function].get_transport())
 
