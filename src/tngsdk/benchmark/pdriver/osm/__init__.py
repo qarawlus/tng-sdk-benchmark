@@ -154,10 +154,10 @@ class OsmDriver(object):
                     exit(1)
                 continue
             global PATH_SHARE
-            LOG.info(f'Creating {PATH_SHARE} folder at {function}') 
+            LOG.info(f'Creating {PATH_SHARE} folder at {function}')
             PATH_SHARE = os.path.join('/', 'home', login_uname, PATH_SHARE)
             stdin, stdout, stderr = self.ssh_clients[function].exec_command(
-                f'mkdir {PATH_SHARE}')
+                f'mkdir {PATH_SHARE}') #TODO: needs the home directory to be owned by user ubuntu which will be done at end of cloud init and it is then gonna give error because it runs before the cloud-init script ends, find a workaround
             time.sleep(3)
             LOG.info(f"Executing start command {cmd_start} at {function}")
             stdin, stdout, stderr = self.ssh_clients[function].exec_command(
