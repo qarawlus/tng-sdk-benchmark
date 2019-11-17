@@ -83,3 +83,10 @@ class OSMConnectionManager(object):
         except ClientException as e:
             LOG.error(e)
             raise
+    
+    def create_ns(self, nsd_name, nsr_name, account, config=None, ssh_keys=None, description='default description', admin_status='ENABLED', wait=False):
+        try:
+            self.client.ns.create(nsd_name, nsr_name, account, config, ssh_keys, description, admin_status, wait)
+        except ClientException as e:
+            LOG.error(e)
+            raise
