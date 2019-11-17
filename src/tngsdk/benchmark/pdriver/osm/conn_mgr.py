@@ -90,3 +90,10 @@ class OSMConnectionManager(object):
         except ClientException as e:
             LOG.error(e)
             raise
+    
+    def get_nsd(self, name):
+        try:
+            return self.client.nsd.get(name)
+        except ClientException as e:
+            LOG.error(e)
+            raise

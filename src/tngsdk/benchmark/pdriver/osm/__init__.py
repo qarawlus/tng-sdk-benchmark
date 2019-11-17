@@ -82,7 +82,6 @@ class OsmDriver(object):
         #     pass
 
     def setup_experiment(self, ec):
-        self.ip_addresses = {}
         try:
             self.vnfd_id = self.conn_mgr.upload_vnfd_package(ec.vnfd_package_path)
         except Exception:
@@ -96,18 +95,21 @@ class OsmDriver(object):
             exit(1)
             # pass  # TODO Handle properly: In a sophisticated (empty) platform, it should give no error.
 
-        self.nsi_uuid = (self.conn_mgr.client.nsd.get(ec.experiment.name).get('_id'))
+        try:
+            self.nsi_uuid = (self.conn_mgr.get_nsd(ec.experiment.name).get('_id'))
+        except Exception:
+            LOG.error("Could not fetch NSD '{}'.".format(ec.experiment.name))
+            exit(1)
         # Instantiate the NSD
         try:
-            self.conn_mgr.client.ns.create(self.nsi_uuid, ec.name, self.config.get('VIM_name'), wait=True)
+            self.conn_mgr.create_ns(self.nsi_uuid, ec.name, self.config.get('VIM_name'), wait=True)
         except Exception:
             LOG.error("Could not create NS Instance.")
             exit(1)
-
-
         self._get_ip_addresses(ec)
 
     def _get_ip_addresses(self, ec):
+        self.ip_addresses = {}
         ns = self.conn_mgr.client.ns.get(ec.name)
         for vnf_ref in ns.get('constituent-vnfr-ref'):
             vnf_desc = self.conn_mgr.client.vnf.get(vnf_ref)
