@@ -86,7 +86,7 @@ class OSMServiceConfigurationGenerator(
         # Step -1: Check if path exists
         if not os.path.exists(vnfd_pkg_path):
             LOG.error("Could not load vnfd package referenced in PED: {}"
-                      .format(nsd_pkg_path))
+                      .format(vnfd_pkg_path))
             exit(1)
         if not os.path.exists(nsd_pkg_path):
             LOG.error("Could not load nsd package referenced in PED: {}"
@@ -94,7 +94,7 @@ class OSMServiceConfigurationGenerator(
             exit(1)
 
         if not os.path.exists(probe_package_path):
-            LOG.error("Could not load nsd package referenced in PED: {}"
+            LOG.error("Could not load probe package referenced in PED: {}"
                       .format(probe_package_path))
             exit(1)
 

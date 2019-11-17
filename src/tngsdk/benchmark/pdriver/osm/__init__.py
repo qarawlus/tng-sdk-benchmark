@@ -87,7 +87,7 @@ class OsmDriver(object):
             self.vnfd_id = self.conn_mgr.upload_vnfd_package(ec.vnfd_package_path)
             self.conn_mgr.upload_vnfd_package(ec.probe_package_path)
         except Exception:
-            LOG.error("Could not upload vnfd package.")
+            LOG.error("Could not upload vnfd packages.")
             exit(1)
             # pass  # TODO Handle properly: In a sophisticated (empty) platform, it should give no error.
         try:
