@@ -97,3 +97,19 @@ class OSMConnectionManager(object):
         except ClientException as e:
             LOG.error(e)
             raise
+    
+    def get_ns(self, name):
+        try:
+            return self.client.ns.get(name)
+        except ClientException as e:
+            LOG.error(e)
+            raise
+    
+    def get_vnf(self, name):
+        try:
+            return self.client.vnf.get(name)
+        except ClientException as e:
+            LOG.error(e)
+            raise
+    
+    
