@@ -100,6 +100,9 @@ class OsmDriver(object):
         # Instantiate the NSD
         self.conn_mgr.client.ns.create(self.nsi_uuid, ec.name, self.config.get('VIM_name'), wait=True)
 
+        self._get_ip_addresses(ec)
+
+    def _get_ip_addresses(self, ec):
         ns = self.conn_mgr.client.ns.get(ec.name)
         for vnf_ref in ns.get('constituent-vnfr-ref'):
             vnf_desc = self.conn_mgr.client.vnf.get(vnf_ref)
