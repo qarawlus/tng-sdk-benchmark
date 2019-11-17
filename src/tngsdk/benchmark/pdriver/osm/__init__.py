@@ -85,7 +85,7 @@ class OsmDriver(object):
         self.ip_addresses = {}
         try:
             self.vnfd_id = self.conn_mgr.upload_vnfd_package(ec.vnfd_package_path)
-            self.conn_mgr.upload_vnfd_package(ec.probe_package_path)
+            self.probe_vnfd_id = self.conn_mgr.upload_vnfd_package(ec.probe_package_path)
         except Exception:
             LOG.error("Could not upload vnfd packages.")
             exit(1)
@@ -212,8 +212,11 @@ class OsmDriver(object):
         LOG.info("Sleeping for 20 before destroying NS")
         self.conn_mgr.client.ns.delete(ec.name, wait=True)
         self.conn_mgr.client.nsd.delete(self.nsd_id)
-        self.conn_mgr.client.vnfd.delete(self.vnfd_id)
         LOG.info("Deleted service: {}".format(self.nsi_uuid))
+        self.conn_mgr.client.vnfd.delete(self.vnfd_id)
+        LOG.info("Deleted VNFD: {}".format(self.vnfd_id))
+        self.conn_mgr.client.vnfd.delete(self.probe_vnfd_id)
+        LOG.info("Deleted Probe VNFD: {}".format(self.probe_vnfd_id))
 
     def teardown_platform(self):
         # self.conn_mgr.client.vim.delete("trial_vim")
