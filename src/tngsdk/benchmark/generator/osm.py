@@ -69,7 +69,7 @@ class OSMServiceConfigurationGenerator(
         LOG.info("New OSM service configuration generator")
         LOG.debug("OSM generator args: {}".format(self.args))
 
-    def generate(self, nsd_pkg_path, vnfd_pkg_path, func_ex, service_ex):
+    def generate(self, nsd_pkg_path, vnfd_pkg_path, probe_package_path, func_ex, service_ex):
         """
         Generates service configurations according to the inputs.
         Returns a list of identifiers / paths to the
@@ -92,6 +92,14 @@ class OSMServiceConfigurationGenerator(
             LOG.error("Could not load nsd package referenced in PED: {}"
                       .format(nsd_pkg_path))
             exit(1)
+
+        if not os.path.exists(probe_package_path):
+            LOG.error("Could not load nsd package referenced in PED: {}"
+                      .format(probe_package_path))
+            exit(1)
+
+        # TODO: Actually manipulate the probe VNFD Package
+        self.probe_package_path = probe_package_path
 
         # Step 1: decompress VNFD and NSD files
         original_vnfd_archive = tarfile.open(vnfd_pkg_path, 'r:gz')
@@ -151,7 +159,7 @@ class OSMServiceConfigurationGenerator(
         """
         Update the YAML VNFD contents
         """
-        vnfd_yaml['vnfd:vnfd-catalog']['vnfd'][0]['name']=service_ex.experiment_configurations[ec_index].name
+        vnfd_yaml['vnfd:vnfd-catalog']['vnfd'][0]['name'] = service_ex.experiment_configurations[ec_index].name
         for pname, pvalue in service_ex.experiment_configurations[ec_index].parameter.items():
             function_type = parse_ec_parameter_key(pname).get("type")
             vnf_type = parse_ec_parameter_key(pname).get("function_name")
@@ -163,9 +171,10 @@ class OSMServiceConfigurationGenerator(
                 if field_name == 'mem_max':
                     # Single VNFD single VDU for now
                     vnfd_yaml['vnfd:vnfd-catalog']['vnfd'][0]['vdu'][0]['vm-flavor']['memory-mb'] = pvalue
-            #else:
-               # LOG.error("Unknown fields in vnfd params")
+            # else:
+                # LOG.error("Unknown fields in vnfd params")
         service_ex.experiment_configurations[ec_index].vnfd_package_path = output_vnfd_pkg.name
+        service_ex.experiment_configurations[ec_index].probe_package_path = self.probe_package_path
 
     def _update_output_nsd_pkg(self, original_nsd_archive, output_nsd_stream, service_ex):
         """
@@ -177,8 +186,8 @@ class OSMServiceConfigurationGenerator(
                 member_contents = original_nsd_archive.extractfile(pkg_file)
                 nsd_contents = yaml.safe_load(member_contents)
 
-                self._add_probes_in_nsd(nsd_contents,service_ex)
-                nsd_contents['nsd:nsd-catalog']['nsd'][0]['name']=service_ex.name
+                self._add_probes_in_nsd(nsd_contents, service_ex)
+                nsd_contents['nsd:nsd-catalog']['nsd'][0]['name'] = service_ex.name
 
                 new_nsd_ti = tarfile.TarInfo(member_name)
                 new_nsd_stream = yaml.dump(nsd_contents).encode('utf8')
@@ -190,7 +199,7 @@ class OSMServiceConfigurationGenerator(
         for ec_index in range(len(service_ex.experiment_configurations)):
             service_ex.experiment_configurations[ec_index].nsd_package_path = output_nsd_stream.name
 
-    def _add_probes_in_nsd(self,nsd_contents,service_ex):
+    def _add_probes_in_nsd(self, nsd_contents, service_ex):
         """
         Updates the nsd file contents by adding probe configuration
         """
@@ -203,24 +212,34 @@ class OSMServiceConfigurationGenerator(
             mp_name = mp.get('name')
             # get mp.vm-name->image #we dont need this as of now
             # Step 1 : Adding constituent vnfds for probes
-            constituent_vnfd.append({"member-vnf-index":max_idx+1, "vnfd-id-ref":mp_name})
+            constituent_vnfd.append({"member-vnf-index": max_idx + 1, "vnfd-id-ref": mp_name})
             # Step 2 : Adding probe vnfd connection point reference to vlds
             vld = nsd_contents['nsd:nsd-catalog']['nsd'][0]['vld']
             for vld_n in vld:
-                if vld_n.get('vim-network-name')=='mgmt':
+                if vld_n.get('vim-network-name') == 'mgmt':
                     # Management Network
                     vnfd_connection_point_ref = vld_n.get('vnfd-connection-point-ref')
-                    vnfd_connection_point_ref.append({'member-vnf-index-ref':max_idx+1, 'vnfd-connection-point-ref':'eth1-mgmt', 'vnfd-id-ref':mp_name})
+                    vnfd_connection_point_ref.append({
+                        'member-vnf-index-ref': max_idx + 1,
+                        'vnfd-connection-point-ref': 'eth1-mgmt',
+                        'vnfd-id-ref': mp_name
+                    })
                 else:
                     # Data Network
                     vnfd_connection_point_ref = vld_n.get('vnfd-connection-point-ref')
-                    vnfd_connection_point_ref.append({'member-vnf-index-ref':max_idx+1, 'vnfd-connection-point-ref':'eth0-data', 'vnfd-id-ref':mp_name})
-            max_idx = max_idx+1
+                    vnfd_connection_point_ref.append({
+                        'member-vnf-index-ref': max_idx + 1,
+                        'vnfd-connection-point-ref': 'eth0-data',
+                        'vnfd-id-ref': mp_name
+                    })
+            max_idx = max_idx + 1
 
     def print_generation_and_packaging_statistics(self):
-        print("-"*80)
+        print("-" * 80)
         print("OSM tng-bench: Experiment generation report")
-        print("-"*80)
-        print("Generated OSM packages for {} experiments with {} configurations.".format(self.stat_n_ex,self.stat_n_ec))
+        print("-" * 80)
+        print("Generated OSM packages for {} experiments with {} configurations.".format(
+            self.stat_n_ex, self.stat_n_ec)
+        )
         print("Total time: %s" % "%.4f" % (time.time() - self.start_time))
-        print("-"*80)
+        print("-" * 80)
