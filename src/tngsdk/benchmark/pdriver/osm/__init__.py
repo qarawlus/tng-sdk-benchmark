@@ -85,8 +85,9 @@ class OsmDriver(object):
         self.ip_addresses = {}
         try:
             self.vnfd_id = self.conn_mgr.upload_vnfd_package(ec.vnfd_package_path)
+            self.conn_mgr.upload_vnfd_package(ec.probe_package_path)
         except Exception:
-            LOG.error("Could not upload vnfd package.")
+            LOG.error("Could not upload vnfd packages.")
             exit(1)
             # pass  # TODO Handle properly: In a sophisticated (empty) platform, it should give no error.
         try:
@@ -131,7 +132,7 @@ class OsmDriver(object):
         time_warmup = int(ec.parameter['ep::header::all::time_warmup'])
         LOG.debug(f'Warmup time: Sleeping for {time_warmup}')
         time.sleep(time_warmup)
-        # TODO: Modularize this and remove the for loop. 
+        # TODO: Modularize this and remove the for loop.
         for ex_p in ec.experiment.experiment_parameters:
             cmd_start = ex_p['cmd_start']
             function = ex_p['function']
@@ -144,20 +145,23 @@ class OsmDriver(object):
                 login_pass = vnf_password
 
             LOG.info(f"Connecting SSH to {function} at IP:{self.ip_addresses[function]['mgmt']}")
-            timeout = time.time() + 15*60 #in seconds
+            timeout = time.time() + 15 * 60  # in seconds
             while not self._ssh_connect(function, self.ip_addresses[function]['mgmt'], username=login_uname,
                                         password=login_pass):
                 # Keep looping until a connection is established
                 time.sleep(15)
-                if time.time()>timeout:
+                if time.time() > timeout:
                     LOG.error("Connection timed out: Could not connect using ssh.")
                     exit(1)
                 continue
             global PATH_SHARE
             LOG.info(f'Creating {PATH_SHARE} folder at {function}')
             PATH_SHARE = os.path.join('/', 'home', login_uname, PATH_SHARE)
+            # TODO: needs the home directory to be owned by user ubuntu which will be done at end of
+            # cloud init and it is then gonna give error because it runs before the cloud-init script
+            # ends, find a workaround
             stdin, stdout, stderr = self.ssh_clients[function].exec_command(
-                f'mkdir {PATH_SHARE}') #TODO: needs the home directory to be owned by user ubuntu which will be done at end of cloud init and it is then gonna give error because it runs before the cloud-init script ends, find a workaround
+                f'mkdir {PATH_SHARE}')
             time.sleep(3)
             LOG.info(f"Executing start command {cmd_start} at {function}")
             stdin, stdout, stderr = self.ssh_clients[function].exec_command(
