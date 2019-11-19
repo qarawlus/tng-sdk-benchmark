@@ -249,6 +249,7 @@ class ExperimentConfiguration(object):
         self.project_path = None  # path of generated project
         self.vnfd_package_path = None  # path of generated VNFD package
         self.nsd_package_path = None
+        self.probe_package_path = None
         self.name = "{}_{:05d}".format(experiment.name, self.run_id)
         # additional information
         self.function_ids = dict()  # mapping between VNF names and IDs

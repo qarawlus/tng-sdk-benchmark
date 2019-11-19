@@ -240,6 +240,10 @@ class ProfileManager(object):
                     os.path.dirname(
                         self.ped.get("ped_path", "/")),
                     self.ped.get("function_package")),
+                os.path.join(  # ensure that the reference is an absolute path
+                    os.path.dirname(
+                        self.ped.get("ped_path", "/")),
+                    self.ped.get("probe_package")),
                 self.function_experiments,
                 self.service_experiments)
         else:
