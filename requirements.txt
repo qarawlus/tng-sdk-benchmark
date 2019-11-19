@@ -16,3 +16,5 @@ python-magic
 pyangbind
 tngsdk.project
 tngsdk.package
+pycurl
+nose2

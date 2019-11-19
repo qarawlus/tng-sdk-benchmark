@@ -1,0 +1,14 @@
+language: python
+python:
+  - '3.6'
+
+before_install:
+  - pip install -U pip setuptools
+
+install: 
+  - python setup.py install
+
+script: 
+  - flake8 src
+  # Unit test would go here
+  # -python setup.py test
