@@ -38,6 +38,14 @@ If you use this tool for your research, publications, or NFV projects, please co
 
 Please follow [this guide](https://github.com/sonata-nfv/tng-sdk-benchmark/wiki/Setup-execution-platform-(vim-emu)) to install and setup tng-sdk-benchmark and a corresponding execution environment.
 
+### OSM Client requirements
+
+The OSM Client built into tng-bench requires the following packages, which can be installed as follows:
+
+```
+apt-get install libcurl4-gnutls-dev libgnutls28-dev 
+```
+
 ## Usage
 
 ### Run a benchmarking experiment

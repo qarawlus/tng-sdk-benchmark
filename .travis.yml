@@ -3,6 +3,7 @@ python:
   - '3.6'
 
 before_install:
+  - sudo apt-get -y install libcurl4-gnutls-dev libgnutls-dev
   - pip install -U pip setuptools
 
 install: 
