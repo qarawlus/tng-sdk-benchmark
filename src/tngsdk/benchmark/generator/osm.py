@@ -129,17 +129,17 @@ class OSMServiceConfigurationGenerator(
 
             # Close and write the contents of the file
             output_vnfd_pkg.close()
-            
         # Step 3a: Create new VNFD files for measurement points
         template_vnfd_mp_archive = tarfile.open(os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "template/osm_vnfd_mp.tar.gz"), 'r:gz')
         for output_mp_vnfd_pkg in output_mp_vnfd_streams:
-            self._update_output_mp_vnfd_pkg(template_vnfd_mp_archive, output_mp_vnfd_pkg, service_ex[0],
-                                         output_mp_vnfd_streams.index(output_mp_vnfd_pkg))
+            self._update_output_mp_vnfd_pkg(
+                template_vnfd_mp_archive, output_mp_vnfd_pkg, service_ex[0],
+                output_mp_vnfd_streams.index(output_mp_vnfd_pkg))
 
             # Close and write the contents of the file
             output_mp_vnfd_pkg.close()
-        
+
         # Step 4: Create new NSD file
         # To be implemented here
         self._update_output_nsd_pkg(original_nsd_archive, output_nsd_stream, service_ex[0])
@@ -215,8 +215,8 @@ class OSMServiceConfigurationGenerator(
         vnfd_yaml['vnfd:vnfd-catalog']['vnfd'][0]['id'] = service_ex.measurement_points[mp_index].get("name")
         vnfd_yaml['vnfd:vnfd-catalog']['vnfd'][0]['name'] = service_ex.measurement_points[mp_index].get("name")
         vnfd_yaml['vnfd:vnfd-catalog']['vnfd'][0]['short-name'] = service_ex.measurement_points[mp_index].get("name")
-        vnfd_yaml['vnfd:vnfd-catalog']['vnfd'][0]['vdu'][0]['image'] = service_ex.measurement_points[mp_index].get("vm_image")
-
+        vnfd_yaml['vnfd:vnfd-catalog']['vnfd'][0]['vdu'][0]['image'] = service_ex.measurement_points[mp_index].get(
+            "vm_image")
 
     def _update_output_nsd_pkg(self, original_nsd_archive, output_nsd_stream, service_ex):
         """
@@ -227,10 +227,8 @@ class OSMServiceConfigurationGenerator(
             if member_name.endswith(".yaml") or member_name.endswith(".yml"):
                 member_contents = original_nsd_archive.extractfile(pkg_file)
                 nsd_contents = yaml.safe_load(member_contents)
-
                 self._add_probes_in_nsd(nsd_contents, service_ex)
                 nsd_contents['nsd:nsd-catalog']['nsd'][0]['name'] = service_ex.name
-
                 new_nsd_ti = tarfile.TarInfo(member_name)
                 new_nsd_stream = yaml.dump(nsd_contents).encode('utf8')
                 new_nsd_ti.size = len(new_nsd_stream)

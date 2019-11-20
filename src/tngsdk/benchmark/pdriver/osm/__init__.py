@@ -82,7 +82,7 @@ class OsmDriver(object):
         #     pass
 
     def setup_experiment(self, ec):
-        #Uplaod VNFD package
+        # Uplaod VNFD package
         try:
             self.vnfd_id = self.conn_mgr.upload_vnfd_package(ec.vnfd_package_path)
             self.probe_vnfd_id = []
@@ -92,16 +92,16 @@ class OsmDriver(object):
             LOG.error("Could not upload vnfd packages.")
             exit(1)
             # pass  # TODO Handle properly: In a sophisticated (empty) platform, it should give no error.
-        
-        #Uplaod NSD package
+
+        # Uplaod NSD package
         try:
             self.nsd_id = self.conn_mgr.upload_nsd_package(ec.nsd_package_path)
         except Exception:
             LOG.error("Could not upload NSD package.")
             exit(1)
             # pass  # TODO Handle properly: In a sophisticated (empty) platform, it should give no error.
-        
-        #Fetch NSD ID to instantiate it
+
+        # Fetch NSD ID to instantiate it
         try:
             self.nsi_uuid = (self.conn_mgr.get_nsd(ec.experiment.name).get('_id'))
         except Exception:
@@ -115,7 +115,7 @@ class OsmDriver(object):
             LOG.error("Could not create NS Instance.")
             exit(1)
 
-        #Fetch IP Addresses of the deployed instances
+        # Fetch IP Addresses of the deployed instances
         self._get_ip_addresses(ec)
 
     def _get_ip_addresses(self, ec):
