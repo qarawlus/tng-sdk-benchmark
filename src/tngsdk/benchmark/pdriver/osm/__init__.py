@@ -128,7 +128,7 @@ class OsmDriver(object):
                     self.ip_addresses[vdur.get('vdu-id-ref')] = {}
                     for interfaces in vdur.get('interfaces'):
                         if interfaces.get('mgmt-vnf') is None:
-                            if vdur.get('vdu-id-ref').startswith('mp.'):
+                            if not vdur.get('vdu-id-ref').startswith('mp.'):
                                 self.main_vm_data_ip = interfaces.get('ip-address')
                             self.ip_addresses[vdur.get('vdu-id-ref')]['data'] = interfaces.get('ip-address')
                         else:
