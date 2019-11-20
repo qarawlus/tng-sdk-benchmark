@@ -85,7 +85,9 @@ class OsmDriver(object):
         #Uplaod VNFD package
         try:
             self.vnfd_id = self.conn_mgr.upload_vnfd_package(ec.vnfd_package_path)
-            self.probe_vnfd_id = self.conn_mgr.upload_vnfd_package(ec.probe_package_path)
+            self.probe_vnfd_id = []
+            for probe_path in ec.probe_package_paths:
+                self.probe_vnfd_id.append(self.conn_mgr.upload_vnfd_package(probe_path))
         except Exception:
             LOG.error("Could not upload vnfd packages.")
             exit(1)
