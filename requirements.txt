@@ -10,6 +10,7 @@ gevent==1.4.0
 docker
 numpy==1.16
 pandas==0.24
+six>=1.12
 flatten-dict
 scp
 python-magic
@@ -17,3 +18,4 @@ pyangbind
 tngsdk.project
 tngsdk.package
 pycurl
+nose2

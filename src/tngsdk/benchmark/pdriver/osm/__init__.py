@@ -82,37 +82,61 @@ class OsmDriver(object):
         #     pass
 
     def setup_experiment(self, ec):
-        self.ip_addresses = {}
+        # Uplaod VNFD package
         try:
             self.vnfd_id = self.conn_mgr.upload_vnfd_package(ec.vnfd_package_path)
+            self.probe_vnfd_id = []
+            for probe_path in ec.probe_package_paths:
+                self.probe_vnfd_id.append(self.conn_mgr.upload_vnfd_package(probe_path))
         except Exception:
-            LOG.error("Could not upload vnfd package.")
+            LOG.error("Could not upload vnfd packages.")
             exit(1)
             # pass  # TODO Handle properly: In a sophisticated (empty) platform, it should give no error.
+
+        # Uplaod NSD package
         try:
             self.nsd_id = self.conn_mgr.upload_nsd_package(ec.nsd_package_path)
         except Exception:
-            LOG.error("Could not upload nsd package.")
+            LOG.error("Could not upload NSD package.")
             exit(1)
             # pass  # TODO Handle properly: In a sophisticated (empty) platform, it should give no error.
 
-        self.nsi_uuid = (self.conn_mgr.client.nsd.get(ec.experiment.name).get('_id'))
-        # Instantiate the NSD
-        self.conn_mgr.client.ns.create(self.nsi_uuid, ec.name, self.config.get('VIM_name'), wait=True)
+        # Fetch NSD ID to instantiate it
+        try:
+            self.nsi_uuid = (self.conn_mgr.get_nsd(ec.experiment.name).get('_id'))
+        except Exception:
+            LOG.error("Could not fetch NSD '{}'.".format(ec.experiment.name))
+            exit(1)
 
-        ns = self.conn_mgr.client.ns.get(ec.name)
-        for vnf_ref in ns.get('constituent-vnfr-ref'):
-            vnf_desc = self.conn_mgr.client.vnf.get(vnf_ref)
-            for vdur in vnf_desc.get('vdur'):
-                self.ip_addresses[vdur.get('vdu-id-ref')] = {}
-                for interfaces in vdur.get('interfaces'):
-                    if interfaces.get('mgmt-vnf') is None:
-                        if vdur.get('vdu-id-ref').startswith('mp.'):
-                            self.main_vm_data_ip = interfaces.get('ip-address')
-                        self.ip_addresses[vdur.get('vdu-id-ref')]['data'] = interfaces.get('ip-address')
-                    else:
-                        self.ip_addresses[vdur.get('vdu-id-ref')]['mgmt'] = interfaces.get('ip-address')
-        LOG.info("Instantiated service: {}".format(self.nsi_uuid))
+        # Instantiate the NSD
+        try:
+            self.conn_mgr.create_ns(self.nsi_uuid, ec.name, self.config.get('VIM_name'), wait=True)
+        except Exception:
+            LOG.error("Could not create NS Instance.")
+            exit(1)
+
+        # Fetch IP Addresses of the deployed instances
+        self._get_ip_addresses(ec)
+
+    def _get_ip_addresses(self, ec):
+        self.ip_addresses = {}
+        try:
+            ns = self.conn_mgr.get_ns(ec.name)
+            for vnf_ref in ns.get('constituent-vnfr-ref'):
+                vnf_desc = self.conn_mgr.get_vnf(vnf_ref)
+                for vdur in vnf_desc.get('vdur'):
+                    self.ip_addresses[vdur.get('vdu-id-ref')] = {}
+                    for interfaces in vdur.get('interfaces'):
+                        if interfaces.get('mgmt-vnf') is None:
+                            if not vdur.get('vdu-id-ref').startswith('mp.'):
+                                self.main_vm_data_ip = interfaces.get('ip-address')
+                            self.ip_addresses[vdur.get('vdu-id-ref')]['data'] = interfaces.get('ip-address')
+                        else:
+                            self.ip_addresses[vdur.get('vdu-id-ref')]['mgmt'] = interfaces.get('ip-address')
+            LOG.info("Instantiated service: {}".format(self.nsi_uuid))
+        except Exception:
+            LOG.error("Could not fetch IP addresses.")
+            exit(1)
 
     def execute_experiment(self, ec):
 
@@ -131,7 +155,7 @@ class OsmDriver(object):
         time_warmup = int(ec.parameter['ep::header::all::time_warmup'])
         LOG.debug(f'Warmup time: Sleeping for {time_warmup}')
         time.sleep(time_warmup)
-        # TODO: Modularize this and remove the for loop. 
+        # TODO: Modularize this and remove the for loop.
         for ex_p in ec.experiment.experiment_parameters:
             cmd_start = ex_p['cmd_start']
             function = ex_p['function']
@@ -144,18 +168,21 @@ class OsmDriver(object):
                 login_pass = vnf_password
 
             LOG.info(f"Connecting SSH to {function} at IP:{self.ip_addresses[function]['mgmt']}")
-            timeout = time.time() + 15*60 #in seconds
+            timeout = time.time() + 15 * 60  # in seconds
             while not self._ssh_connect(function, self.ip_addresses[function]['mgmt'], username=login_uname,
                                         password=login_pass):
                 # Keep looping until a connection is established
                 time.sleep(15)
-                if time.time()>timeout:
+                if time.time() > timeout:
                     LOG.error("Connection timed out: Could not connect using ssh.")
                     exit(1)
                 continue
             global PATH_SHARE
-            LOG.info(f'Creating {PATH_SHARE} folder at {function}') 
+            LOG.info(f'Creating {PATH_SHARE} folder at {function}')
             PATH_SHARE = os.path.join('/', 'home', login_uname, PATH_SHARE)
+            # TODO: needs the home directory to be owned by user ubuntu which will be done at end of
+            # cloud init and it is then gonna give error because it runs before the cloud-init script
+            # ends, find a workaround
             stdin, stdout, stderr = self.ssh_clients[function].exec_command(
                 f'mkdir {PATH_SHARE}')
             time.sleep(3)
@@ -208,8 +235,11 @@ class OsmDriver(object):
         LOG.info("Sleeping for 20 before destroying NS")
         self.conn_mgr.client.ns.delete(ec.name, wait=True)
         self.conn_mgr.client.nsd.delete(self.nsd_id)
-        self.conn_mgr.client.vnfd.delete(self.vnfd_id)
         LOG.info("Deleted service: {}".format(self.nsi_uuid))
+        self.conn_mgr.client.vnfd.delete(self.vnfd_id)
+        LOG.info("Deleted VNFD: {}".format(self.vnfd_id))
+        self.conn_mgr.client.vnfd.delete(self.probe_vnfd_id)
+        LOG.info("Deleted Probe VNFD: {}".format(self.probe_vnfd_id))
 
     def teardown_platform(self):
         # self.conn_mgr.client.vim.delete("trial_vim")
