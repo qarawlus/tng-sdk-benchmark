@@ -48,6 +48,12 @@ apt-get install libcurl4-gnutls-dev libgnutls28-dev
 
 ## Usage
 
+```
+tng-bench --ped examples-osm/peds/ped_example_vnf.yml \
+	--ibbd /tmp/bds --generator osm \
+	--config .tng-bench.conf
+```
+
 ### Run a benchmarking experiment
 
 Before you can run your first benchmarking experiment, you need to install tng-bench and an execution platform following [this guide](https://github.com/sonata-nfv/tng-sdk-benchmark/wiki/Setup-execution-platform-(vim-emu)).
