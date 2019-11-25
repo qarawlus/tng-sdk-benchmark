@@ -36,25 +36,36 @@ import logging
 import pdb
 import tngsdk.benchmark.tests.test_osm_pdriver.test_data as TD
 
-from tngsdk.benchmark import main
-from tngsdk.benchmark import parse_args
-log = logging.getLogger("TestLog")
+from tngsdk.benchmark.generator.osm \
+    import OSMServiceConfigurationGenerator
+
+"""
+Use args from TC1
+"""
+
+gen = OSMServiceConfigurationGenerator(TD.args)
 
 
-class TestCmdLineArgs(unittest.TestCase):
-    """Test if command line arguments are updating or not"""
+class TestOSMServiceConfigurationGenerator(unittest.TestCase):
+    """
+    Test OSMServiceConfigurationGenerator
+    src/tngsdk/benchmark/generator/osm.py
+    """
+    
+    @classmethod
+    def setUpClass(cls):
+        pass
 
     def setUp(self):pass
 
-    def setUp(self):pass
+    def tearDown(self):pass
 
-    def test_generator_and_config_args(self):
-        """Are cmdline args getting added to args object"""
-        # Namespace object
-        actual = parse_args(TD.args)
-        msg1 = '{} <> {}'.format(actual.service_generator, TD.args[3])
-        self.assertEqual(actual.service_generator, TD.args[3], msg=msg1)
-        msg2 = '{} <> {}'.format(actual.configfile, TD.args[5])
-        self.assertEqual(actual.configfile, TD.args[5], msg=msg2)
-        msg3 = '{} <> {}'.format(actual.ped, TD.args[1])
-        self.assertEqual(actual.ped, TD.args[1], msg=msg3)
+    def test_generator_files(self):
+        """
+        @nsd_pkg_path - '/home/avi/tng-sdk-benchmark/examples-osm/peds/../services/example-ns-1vnf-any/example_ns.tar.gz'
+        @vnfd_pkg_path - '/home/avi/tng-sdk-benchmark/examples-osm/peds/../services/example-ns-1vnf-any/example_vnf.tar.gz'
+        @func_ex - 
+        @service_ex - service experiment configuration object
+        """
+        pass
+        
