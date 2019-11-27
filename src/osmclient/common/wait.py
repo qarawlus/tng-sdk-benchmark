@@ -18,7 +18,7 @@
 OSM API handling for the '--wait' option
 """
 
-from tngsdk.osmclient.common.exceptions import ClientException
+from osmclient.common.exceptions import ClientException
 import json
 from time import sleep
 import sys

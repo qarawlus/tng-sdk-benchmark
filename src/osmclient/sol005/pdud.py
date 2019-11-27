@@ -18,9 +18,9 @@
 OSM pdud API handling
 """
 
-from tngsdk.osmclient.common.exceptions import NotFound
-from tngsdk.osmclient.common.exceptions import ClientException
-from tngsdk.osmclient.common import utils
+from osmclient.common.exceptions import NotFound
+from osmclient.common.exceptions import ClientException
+from osmclient.common import utils
 import json
 
 

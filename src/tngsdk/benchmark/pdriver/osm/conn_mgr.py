@@ -33,8 +33,8 @@
 import requests
 from tngsdk.benchmark.logger import TangoLogger
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
-from tngsdk.osmclient import client
-from tngsdk.osmclient.common.exceptions import ClientException
+from osmclient import client
+from osmclient.common.exceptions import ClientException
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 LOG = TangoLogger.getLogger(__name__)
 
