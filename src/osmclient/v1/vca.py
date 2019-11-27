@@ -18,7 +18,7 @@
 OSM VCA API handling
 """
 
-from tngsdk.osmclient.common.exceptions import ClientException
+from osmclient.common.exceptions import ClientException
 
 
 class Vca(object):
