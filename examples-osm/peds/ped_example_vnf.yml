@@ -34,7 +34,7 @@ service_experiments:
     measurement_points:
       - name: "mp.input"
         connection_point: "ns:input"
-        vm_image: "cirros-0.4.0-x86_64-disk"
+        vm_image: "ubuntu1604xenial"
         # Address of data interface to be set automatically
     # experiment parameters to be tested during the experiment
     experiment_parameters:

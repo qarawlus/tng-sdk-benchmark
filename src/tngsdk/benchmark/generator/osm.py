@@ -215,6 +215,9 @@ class OSMServiceConfigurationGenerator(
         vnfd_yaml['vnfd:vnfd-catalog']['vnfd'][0]['id'] = service_ex.measurement_points[mp_index].get("name")
         vnfd_yaml['vnfd:vnfd-catalog']['vnfd'][0]['name'] = service_ex.measurement_points[mp_index].get("name")
         vnfd_yaml['vnfd:vnfd-catalog']['vnfd'][0]['short-name'] = service_ex.measurement_points[mp_index].get("name")
+        vnfd_yaml['vnfd:vnfd-catalog']['vnfd'][0]['vdu'][0]['id'] = service_ex.measurement_points[mp_index].get("name")
+        vnfd_yaml['vnfd:vnfd-catalog']['vnfd'][0]['vdu'][0]['name'] = service_ex.measurement_points[mp_index].get("name")
+        
         vnfd_yaml['vnfd:vnfd-catalog']['vnfd'][0]['vdu'][0]['image'] = service_ex.measurement_points[mp_index].get(
             "vm_image")
 
