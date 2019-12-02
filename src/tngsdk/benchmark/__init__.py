@@ -30,6 +30,7 @@
 # acknowledge the contributions of their colleagues of the SONATA
 # partner consortium (www.5gtango.eu).
 
+import pdb
 import os
 import tempfile
 import argparse
@@ -242,6 +243,7 @@ class ProfileManager(object):
                     self.ped.get("function_package")),
                 self.function_experiments,
                 self.service_experiments)
+            pdb.set_trace()
         else:
             self.cgen.generate(
                 os.path.join(  # ensure that the reference is an absolute path

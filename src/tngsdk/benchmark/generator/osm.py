@@ -76,6 +76,13 @@ class OSMServiceConfigurationGenerator(
         generated service configurations.
 
         in_pkg_path is the directory that contains the ped and services folder
+
+        @nsd_pkg_path - '/home/avi/tng-sdk-benchmark/examples-osm/peds/\
+            ../services/example-ns-1vnf-any/example_ns.tar.gz'
+        @vnfd_pkg_path - '/home/avi/tng-sdk-benchmark/examples-osm/peds/\
+            ../services/example-ns-1vnf-any/example_vnf.tar.gz'
+        @func_ex -
+        @service_ex - service experiment configuration object
         """
         if func_ex is not None and len(func_ex):
             # function experiments are not considered

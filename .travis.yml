@@ -10,6 +10,12 @@ install:
   - python setup.py install
 
 script: 
+  # Code style check
   - flake8 src
+  
+  # Verification-1 - Was installation successfule? 
+  - tng-bench --help
+  
   # Unit test would go here
-  - pytest -v
+  - pytest --show-capture all -s -v src/tngsdk/benchmark/tests/test_osm_pdriver
+  # - pytest -v
