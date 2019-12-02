@@ -238,7 +238,8 @@ class OsmDriver(object):
         LOG.info("Deleted service: {}".format(self.nsi_uuid))
         self.conn_mgr.client.vnfd.delete(self.vnfd_id)
         LOG.info("Deleted VNFD: {}".format(self.vnfd_id))
-        self.conn_mgr.client.vnfd.delete(self.probe_vnfd_id)
+        for probe_vnfd_id_i in self.probe_vnfd_id:
+            self.conn_mgr.client.vnfd.delete(probe_vnfd_id_i)
         LOG.info("Deleted Probe VNFD: {}".format(self.probe_vnfd_id))
 
     def teardown_platform(self):
