@@ -35,7 +35,7 @@ import unittest
 import logging
 import pdb
 import tngsdk.benchmark.tests.test_osm_pdriver.test_data as TD
-
+from unittest.mock import patch
 from tngsdk.benchmark.generator.osm \
     import OSMServiceConfigurationGenerator
 
@@ -44,6 +44,14 @@ Use args from TC1
 """
 
 gen = OSMServiceConfigurationGenerator(TD.args)
+
+
+def test_mock():
+    print('inside test')
+    path = 'tngsdk.benchmark.generator.osm.OSMServiceConfigurationGenerator'
+    with patch(path) as scg:
+        scg.return_value = "Oh fish"
+        print(scg, scg())
 
 
 class TestOSMServiceConfigurationGenerator(unittest.TestCase):
@@ -71,4 +79,12 @@ class TestOSMServiceConfigurationGenerator(unittest.TestCase):
         @func_ex -
         @service_ex - service experiment configuration object
         """
-        pass
+        actual = gen.generate(
+            TD.nsd_pkg_path,
+            TD.vnfd_pkg_path,
+            TD.func_ex,
+            TD.service_ex,
+        )
+
+        pdb.set_trace()
+        print(actual)
