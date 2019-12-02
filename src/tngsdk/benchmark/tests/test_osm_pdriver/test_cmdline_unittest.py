@@ -44,9 +44,11 @@ log = logging.getLogger("TestLog")
 class TestCmdLineArgs(unittest.TestCase):
     """Test if command line arguments are updating or not"""
 
-    def setUp(self):pass
+    def setUp(self):
+        pass
 
-    def setUp(self):pass
+    def tearDown(self):
+        pass
 
     def test_generator_and_config_args(self):
         """Are cmdline args getting added to args object"""

@@ -51,21 +51,24 @@ class TestOSMServiceConfigurationGenerator(unittest.TestCase):
     Test OSMServiceConfigurationGenerator
     src/tngsdk/benchmark/generator/osm.py
     """
-    
+
     @classmethod
     def setUpClass(cls):
         pass
 
-    def setUp(self):pass
+    def setUp(self):
+        pass
 
-    def tearDown(self):pass
+    def tearDown(self):
+        pass
 
     def test_generator_files(self):
         """
-        @nsd_pkg_path - '/home/avi/tng-sdk-benchmark/examples-osm/peds/../services/example-ns-1vnf-any/example_ns.tar.gz'
-        @vnfd_pkg_path - '/home/avi/tng-sdk-benchmark/examples-osm/peds/../services/example-ns-1vnf-any/example_vnf.tar.gz'
-        @func_ex - 
+        @nsd_pkg_path - '/home/avi/tng-sdk-benchmark/examples-osm/peds/\
+            ../services/example-ns-1vnf-any/example_ns.tar.gz'
+        @vnfd_pkg_path - '/home/avi/tng-sdk-benchmark/examples-osm/peds/\
+            ../services/example-ns-1vnf-any/example_vnf.tar.gz'
+        @func_ex -
         @service_ex - service experiment configuration object
         """
         pass
-        
