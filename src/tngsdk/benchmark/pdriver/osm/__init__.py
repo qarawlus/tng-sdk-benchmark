@@ -114,6 +114,8 @@ class OsmDriver(object):
         except Exception:
             LOG.error("Could not create NS Instance.")
             exit(1)
+        else:
+            LOG.info("Instantiated service: {}".format(self.nsi_uuid))
 
         # Fetch IP Addresses of the deployed instances
         self._get_ip_addresses(ec)
@@ -133,7 +135,6 @@ class OsmDriver(object):
                             self.ip_addresses[vdur.get('vdu-id-ref')]['data'] = interfaces.get('ip-address')
                         else:
                             self.ip_addresses[vdur.get('vdu-id-ref')]['mgmt'] = interfaces.get('ip-address')
-            LOG.info("Instantiated service: {}".format(self.nsi_uuid))
         except Exception:
             LOG.error("Could not fetch IP addresses.")
             exit(1)
@@ -155,6 +156,8 @@ class OsmDriver(object):
         time_warmup = int(ec.parameter['ep::header::all::time_warmup'])
         LOG.debug(f'Warmup time: Sleeping for {time_warmup}')
         time.sleep(time_warmup)
+        global PATH_SHARE
+        PATH_SHARE = os.path.join('/' , PATH_SHARE)
         # TODO: Modularize this and remove the for loop.
         for ex_p in ec.experiment.experiment_parameters:
             cmd_start = ex_p['cmd_start']
@@ -177,18 +180,18 @@ class OsmDriver(object):
                     LOG.error("Connection timed out: Could not connect using ssh.")
                     exit(1)
                 continue
-            global PATH_SHARE
             LOG.info(f'Creating {PATH_SHARE} folder at {function}')
-            PATH_SHARE = os.path.join('/', 'home', login_uname, PATH_SHARE)
-            # TODO: needs the home directory to be owned by user ubuntu which will be done at end of
-            # cloud init and it is then gonna give error because it runs before the cloud-init script
-            # ends, find a workaround
             stdin, stdout, stderr = self.ssh_clients[function].exec_command(
-                f'mkdir {PATH_SHARE}')
+                f'sudo mkdir {PATH_SHARE}')
             time.sleep(3)
+            stdin, stdout, stderr = self.ssh_clients[function].exec_command(
+                    f'sudo chmod 777 {PATH_SHARE}')
+            time.sleep(3)
+
             LOG.info(f"Executing start command {cmd_start} at {function}")
             stdin, stdout, stderr = self.ssh_clients[function].exec_command(
-                f'{cmd_start} &> {PATH_SHARE}/{PATH_CMD_START_LOG} &')
+                f'cd / ; sudo sh -c \'{cmd_start}\' &> {PATH_SHARE}/{PATH_CMD_START_LOG} &')
+
 
             LOG.info(stdout)
 
@@ -220,7 +223,7 @@ class OsmDriver(object):
 
         # Sleep for experiment duration
         experiment_duration = int(ec.parameter['ep::header::all::time_limit'])
-        LOG.info(f'Experiment duration: Sleeping for {experiment_duration} before stopping')
+        LOG.info(f'Experiment duration: Sleeping for {experiment_duration} seconds before stopping')
         time.sleep(experiment_duration)
         for ex_p in ec.experiment.experiment_parameters:
             cmd_stop = ex_p['cmd_stop']
@@ -229,10 +232,11 @@ class OsmDriver(object):
             # self.ssh_clients[function].set_missing_host_key_policy(paramiko.AutoAddPolicy())
             LOG.info(f"Executing stop command {cmd_stop}")
             stdin, stdout, stderr = self.ssh_clients[function].exec_command(
-                f'{cmd_stop} &> {PATH_SHARE}/{PATH_CMD_STOP_LOG} &')
+                f'cd / ; sudo sh -c \'{cmd_stop}\' &> {PATH_SHARE}/{PATH_CMD_STOP_LOG} &')
             self._collect_experiment_results(ec, function)
             LOG.info(stdout)
-        LOG.info("Sleeping for 20 before destroying NS")
+        # LOG.info("Sleeping for 20 seconds before destroying NS")
+        # time.sleep(20)
         self.conn_mgr.client.ns.delete(ec.name, wait=True)
         self.conn_mgr.client.nsd.delete(self.nsd_id)
         LOG.info("Deleted service: {}".format(self.nsi_uuid))
