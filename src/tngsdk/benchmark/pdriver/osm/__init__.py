@@ -162,7 +162,7 @@ class OsmDriver(object):
         for ex_p in ec.experiment.experiment_parameters:
             cmd_start = ex_p['cmd_start']
             # LIMITATION: This assumes cmd_start is a bash script.
-            cmd_start += f" VNF_data_ip {self.main_vm_data_ip}"
+            cmd_start += f" vnf {self.main_vm_data_ip}"
             for fn, fn_info in self.ip_addresses.items():
                 if fn.startswith("mp."):
                     cmd_start += f" {fn} {fn_info['data']}"
