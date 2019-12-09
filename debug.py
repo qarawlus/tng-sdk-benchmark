@@ -42,7 +42,7 @@ def main():
             "--generator", "osm",
             "--config", ".tng-bench.conf",
             "--no-prometheus",
-            "--no-execution",
+            # "--no-execution",
     ]
     bench_main(args)
 

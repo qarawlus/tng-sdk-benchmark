@@ -18,8 +18,8 @@
 OSM vnfd API handling
 """
 
-from tngsdk.osmclient.common.exceptions import NotFound
-from tngsdk.osmclient.common.exceptions import ClientException
+from osmclient.common.exceptions import NotFound
+from osmclient.common.exceptions import ClientException
 
 
 class Vnfd(object):

@@ -15,29 +15,27 @@
 #    under the License.
 
 """
-OSM nsd API handling
+OSM NST (Network Slice Template) API handling
 """
 
-from tngsdk.osmclient.common.exceptions import NotFound
-from tngsdk.osmclient.common.exceptions import ClientException
-from tngsdk.osmclient.common import utils
+from osmclient.common.exceptions import NotFound
+from osmclient.common.exceptions import ClientException
+from osmclient.common import utils
 import json
 import magic
-from os.path import basename
 #from os import stat
+#from os.path import basename
 
-
-class Nsd(object):
+class Nst(object):
 
     def __init__(self, http=None, client=None):
         self._http = http
         self._client = client
-        self._apiName = '/nsd'
+        self._apiName = '/nst'
         self._apiVersion = '/v1'
-        self._apiResource = '/ns_descriptors'
+        self._apiResource = '/netslice_templates'
         self._apiBase = '{}{}{}'.format(self._apiName,
                                         self._apiVersion, self._apiResource)
-        #self._apiBase='/nsds'
 
     def list(self, filter=None):
         filter_string = ''
@@ -51,30 +49,30 @@ class Nsd(object):
 
     def get(self, name):
         if utils.validate_uuid4(name):
-            for nsd in self.list():
-                if name == nsd['_id']:
-                    return nsd
+            for nst in self.list():
+                if name == nst['_id']:
+                    return nst
         else:
-            for nsd in self.list():
-                if 'name' in nsd and name == nsd['name']:
-                    return nsd
-        raise NotFound("nsd {} not found".format(name))
+            for nst in self.list():
+                if 'name' in nst and name == nst['name']:
+                    return nst
+        raise NotFound("nst {} not found".format(name))
 
     def get_individual(self, name):
-        nsd = self.get(name)
-        # It is redundant, since the previous one already gets the whole nsdinfo
+        nst = self.get(name)
+        # It is redundant, since the previous one already gets the whole nstinfo
         # The only difference is that a different primitive is exercised
-        resp = self._http.get_cmd('{}/{}'.format(self._apiBase, nsd['_id']))
+        resp = self._http.get_cmd('{}/{}'.format(self._apiBase, nst['_id']))
         #print yaml.safe_dump(resp)
         if resp:
             return resp
-        raise NotFound("nsd {} not found".format(name))
+        raise NotFound("nst {} not found".format(name))
 
     def get_thing(self, name, thing, filename):
-        nsd = self.get(name)
+        nst = self.get(name)
         headers = self._client._headers
         headers['Accept'] = 'application/binary'
-        http_code, resp = self._http.get2_cmd('{}/{}/{}'.format(self._apiBase, nsd['_id'], thing))
+        http_code, resp = self._http.get2_cmd('{}/{}/{}'.format(self._apiBase, nst['_id'], thing))
         #print 'HTTP CODE: {}'.format(http_code)
         #print 'RESP: {}'.format(resp)
         if http_code in (200, 201, 202, 204):
@@ -91,21 +89,21 @@ class Nsd(object):
             raise ClientException("failed to get {} from {} - {}".format(thing, name, msg))
 
     def get_descriptor(self, name, filename):
-        self.get_thing(name, 'nsd', filename)
+        self.get_thing(name, 'nst', filename)
 
     def get_package(self, name, filename):
-        self.get_thing(name, 'package_content', filename)
+        self.get_thing(name, 'nst_content', filename)
 
     def get_artifact(self, name, artifact, filename):
         self.get_thing(name, 'artifacts/{}'.format(artifact), filename)
 
     def delete(self, name, force=False):
-        nsd = self.get(name)
+        nst = self.get(name)
         querystring = ''
         if force:
             querystring = '?FORCE=True'
         http_code, resp = self._http.delete_cmd('{}/{}{}'.format(self._apiBase,
-                                         nsd['_id'], querystring))
+                                         nst['_id'], querystring))
         #print 'HTTP CODE: {}'.format(http_code)
         #print 'RESP: {}'.format(resp)
         if http_code == 202:
@@ -116,10 +114,10 @@ class Nsd(object):
             msg = ""
             if resp:
                 try:
-                    msg = json.loads(resp)
+                    resp = json.loads(resp)
                 except ValueError:
                     msg = resp
-            raise ClientException("failed to delete nsd {} - {}".format(name, msg))
+            raise ClientException("failed to delete nst {} - {}".format(name, msg))
 
     def create(self, filename, overwrite=None, update_endpoint=None):
         mime_type = magic.from_file(filename, mime=True)
@@ -127,9 +125,8 @@ class Nsd(object):
             raise ClientException(
                      "failed to guess MIME type for file '{}'".format(filename))
         headers= self._client._headers
-        headers['Content-Filename'] = basename(filename)
-        if mime_type in ['application/yaml', 'text/plain', 'application/json']:
-            headers['Content-Type'] = 'text/plain'
+        if mime_type in ['application/yaml', 'text/plain']:
+            headers['Content-Type'] = 'application/yaml'
         elif mime_type in ['application/gzip', 'application/x-gzip']:
             headers['Content-Type'] = 'application/gzip'
             #headers['Content-Type'] = 'application/binary'
@@ -152,7 +149,7 @@ class Nsd(object):
             ow_string = ''
             if overwrite:
                 ow_string = '?{}'.format(overwrite)
-            self._apiResource = '/ns_descriptors_content'
+            self._apiResource = '/netslice_templates_content'
             self._apiBase = '{}{}{}'.format(self._apiName,
                                             self._apiVersion, self._apiResource)
             endpoint = '{}{}'.format(self._apiBase,ow_string)
@@ -165,9 +162,7 @@ class Nsd(object):
             if not resp or 'id' not in resp:
                 raise ClientException('unexpected response from server - {}'.format(
                                       resp))
-            return resp['id']
-        elif http_code == 204:
-            print('Updated')
+            print(resp['id'])
         else:
             msg = "Error {}".format(http_code)
             if resp:
@@ -175,10 +170,10 @@ class Nsd(object):
                     msg = "{} - {}".format(msg, json.loads(resp))
                 except ValueError:
                     msg = "{} - {}".format(msg, resp)
-            raise ClientException("failed to create/update nsd - {}".format(msg))
+            raise ClientException("failed to create/update nst - {}".format(msg))
 
     def update(self, name, filename):
-        nsd = self.get(name)
-        endpoint = '{}/{}/nsd_content'.format(self._apiBase, nsd['_id'])
+        nst = self.get(name)
+        endpoint = '{}/{}/nst_content'.format(self._apiBase, nst['_id'])
         self.create(filename=filename, update_endpoint=endpoint)
 

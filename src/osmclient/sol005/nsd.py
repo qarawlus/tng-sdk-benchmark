@@ -15,65 +15,66 @@
 #    under the License.
 
 """
-OSM vnfd API handling
+OSM nsd API handling
 """
 
-from tngsdk.osmclient.common.exceptions import NotFound
-from tngsdk.osmclient.common.exceptions import ClientException
-from tngsdk.osmclient.common import utils
+from osmclient.common.exceptions import NotFound
+from osmclient.common.exceptions import ClientException
+from osmclient.common import utils
 import json
 import magic
 from os.path import basename
 #from os import stat
 
 
-class Vnfd(object):
+class Nsd(object):
 
     def __init__(self, http=None, client=None):
         self._http = http
         self._client = client
-        self._apiName = '/vnfpkgm'
+        self._apiName = '/nsd'
         self._apiVersion = '/v1'
-        self._apiResource = '/vnf_packages'
+        self._apiResource = '/ns_descriptors'
         self._apiBase = '{}{}{}'.format(self._apiName,
                                         self._apiVersion, self._apiResource)
-        #self._apiBase='/vnfds'
+        #self._apiBase='/nsds'
 
     def list(self, filter=None):
         filter_string = ''
         if filter:
             filter_string = '?{}'.format(filter)
-        resp = self._http.get_cmd('{}{}'.format(self._apiBase,filter_string))
+        resp = self._http.get_cmd('{}{}'.format(self._apiBase, filter_string))
+        #print yaml.safe_dump(resp)
         if resp:
             return resp
         return list()
 
     def get(self, name):
         if utils.validate_uuid4(name):
-            for vnfd in self.list():
-                if name == vnfd['_id']:
-                    return vnfd
+            for nsd in self.list():
+                if name == nsd['_id']:
+                    return nsd
         else:
-            for vnfd in self.list():
-                if 'name' in vnfd and name == vnfd['name']:
-                    return vnfd
-        raise NotFound("vnfd {} not found".format(name))
+            for nsd in self.list():
+                if 'name' in nsd and name == nsd['name']:
+                    return nsd
+        raise NotFound("nsd {} not found".format(name))
 
     def get_individual(self, name):
-        vnfd = self.get(name)
-        # It is redundant, since the previous one already gets the whole vnfpkginfo
+        nsd = self.get(name)
+        # It is redundant, since the previous one already gets the whole nsdinfo
         # The only difference is that a different primitive is exercised
-        resp = self._http.get_cmd('{}/{}'.format(self._apiBase, vnfd['_id']))
+        resp = self._http.get_cmd('{}/{}'.format(self._apiBase, nsd['_id']))
         #print yaml.safe_dump(resp)
         if resp:
             return resp
-        raise NotFound("vnfd {} not found".format(name))
+        raise NotFound("nsd {} not found".format(name))
 
     def get_thing(self, name, thing, filename):
-        vnfd = self.get(name)
+        nsd = self.get(name)
         headers = self._client._headers
         headers['Accept'] = 'application/binary'
-        http_code, resp = self._http.get2_cmd('{}/{}/{}'.format(self._apiBase, vnfd['_id'], thing))
+        http_code, resp = self._http.get2_cmd('{}/{}/{}'.format(self._apiBase, nsd['_id'], thing))
         #print 'HTTP CODE: {}'.format(http_code)
         #print 'RESP: {}'.format(resp)
         if http_code in (200, 201, 202, 204):
@@ -90,7 +91,7 @@ class Vnfd(object):
             raise ClientException("failed to get {} from {} - {}".format(thing, name, msg))
 
     def get_descriptor(self, name, filename):
-        self.get_thing(name, 'vnfd', filename)
+        self.get_thing(name, 'nsd', filename)
 
     def get_package(self, name, filename):
         self.get_thing(name, 'package_content', filename)
@@ -99,12 +100,12 @@ class Vnfd(object):
         self.get_thing(name, 'artifacts/{}'.format(artifact), filename)
 
     def delete(self, name, force=False):
-        vnfd = self.get(name)
+        nsd = self.get(name)
         querystring = ''
         if force:
             querystring = '?FORCE=True'
         http_code, resp = self._http.delete_cmd('{}/{}{}'.format(self._apiBase,
-                                         vnfd['_id'], querystring))
+                                         nsd['_id'], querystring))
         #print 'HTTP CODE: {}'.format(http_code)
         #print 'RESP: {}'.format(resp)
         if http_code == 202:
@@ -118,7 +119,7 @@ class Vnfd(object):
                     msg = json.loads(resp)
                 except ValueError:
                     msg = resp
-            raise ClientException("failed to delete vnfd {} - {}".format(name, msg))
+            raise ClientException("failed to delete nsd {} - {}".format(name, msg))
 
     def create(self, filename, overwrite=None, update_endpoint=None):
         mime_type = magic.from_file(filename, mime=True)
@@ -151,18 +152,18 @@ class Vnfd(object):
             ow_string = ''
             if overwrite:
                 ow_string = '?{}'.format(overwrite)
-            self._apiResource = '/vnf_packages_content'
+            self._apiResource = '/ns_descriptors_content'
             self._apiBase = '{}{}{}'.format(self._apiName,
                                             self._apiVersion, self._apiResource)
             endpoint = '{}{}'.format(self._apiBase,ow_string)
             http_code, resp = self._http.post_cmd(endpoint=endpoint, filename=filename)
         #print 'HTTP CODE: {}'.format(http_code)
         #print 'RESP: {}'.format(resp)
-        if http_code in (200, 201, 202):
+        if http_code in (200, 201, 202, 204):
             if resp:
                 resp = json.loads(resp)
             if not resp or 'id' not in resp:
-                raise ClientException('unexpected response from server: '.format(
+                raise ClientException('unexpected response from server - {}'.format(
                                       resp))
             return resp['id']
         elif http_code == 204:
@@ -174,10 +175,10 @@ class Vnfd(object):
                     msg = "{} - {}".format(msg, json.loads(resp))
                 except ValueError:
                     msg = "{} - {}".format(msg, resp)
-            raise ClientException("failed to create/update vnfd - {}".format(msg))
+            raise ClientException("failed to create/update nsd - {}".format(msg))
 
     def update(self, name, filename):
-        vnfd = self.get(name)
-        endpoint = '{}/{}/package_content'.format(self._apiBase, vnfd['_id'])
+        nsd = self.get(name)
+        endpoint = '{}/{}/nsd_content'.format(self._apiBase, nsd['_id'])
         self.create(filename=filename, update_endpoint=endpoint)
 
