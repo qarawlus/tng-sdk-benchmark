@@ -157,7 +157,7 @@ class OsmDriver(object):
         LOG.debug(f'Warmup time: Sleeping for {time_warmup}')
         time.sleep(time_warmup)
         global PATH_SHARE
-        PATH_SHARE = os.path.join('/' , PATH_SHARE)
+        PATH_SHARE = os.path.join('/', PATH_SHARE)
         # TODO: Modularize this and remove the for loop.
         for ex_p in ec.experiment.experiment_parameters:
             cmd_start = ex_p['cmd_start']
@@ -191,7 +191,7 @@ class OsmDriver(object):
                 f'sudo mkdir {PATH_SHARE}')
             time.sleep(3)
             stdin, stdout, stderr = self.ssh_clients[function].exec_command(
-                    f'sudo chmod 777 {PATH_SHARE}')
+                f'sudo chmod 777 {PATH_SHARE}')
             time.sleep(3)
 
             LOG.info(f"Executing start command {cmd_start} at {function}")
