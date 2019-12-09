@@ -33,6 +33,7 @@
 
 import unittest
 import logging
+from mock import Mock
 import tngsdk.benchmark.tests.test_osm_pdriver.test_data as TD
 from unittest.mock import patch
 from tngsdk.benchmark.generator.osm \
@@ -75,17 +76,6 @@ class TestOSMServiceConfigurationGenerator(unittest.TestCase):
             OSMServiceConfigurationGenerator()
         self.assertRegex(cm.exception.args[0], 'args', msg='did not match expected input arguments')
 
-        # with self.assertRaises(SomeException):
-
-        # actual = gen.generate(
-        #     TD.nsd_pkg_path,
-        #     TD.vnfd_pkg_path,
-        #     TD.func_ex,
-        #     TD.service_ex,
-        # )
-
-        # print(actual)
-
     def test_constructor_instantiation_with_args(self):
         """
         """
@@ -101,3 +91,19 @@ class TestOSMServiceConfigurationGenerator(unittest.TestCase):
         with self.assertRaises(TypeError) as cm:
             gen = actual.generate()
         self.assertRegex(cm.exception.args[0], expected, msg='did not match expected input arguments')
+
+    def test_generator_with_4_args(self):
+        """
+        """
+        osm = OSMServiceConfigurationGenerator(TD.args_obj)
+        # with self.assertRaises(TypeError) as cm:
+        actual = osm.generate(
+            TD.nsd_pkg_path,
+            TD.vnfd_pkg_path,
+            TD.func_ex,
+            TD.service_ex,
+        )
+        print(actual)
+        # self.assertRegex(cm.exception.args[0], expected, msg='did not match expected input arguments')
+        # with self.assertRaises(SomeException):
+        # print(actual)
