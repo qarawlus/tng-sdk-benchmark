@@ -86,7 +86,7 @@ class TestOSMServiceConfigurationGenerator(unittest.TestCase):
 
         # print(actual)
 
-    def test_constructor_instantiation_without_args(self):
+    def test_constructor_instantiation_with_args(self):
         """
         """
         actual = OSMServiceConfigurationGenerator(TD.args)
