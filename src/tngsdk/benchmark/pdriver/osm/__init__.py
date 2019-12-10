@@ -230,6 +230,11 @@ class OsmDriver(object):
         experiment_duration = int(ec.parameter['ep::header::all::time_limit'])
         LOG.info(f'Experiment duration: Sleeping for {experiment_duration} seconds before stopping')
         time.sleep(experiment_duration)
+
+        # hold execution for manual debugging:
+        if self.args.hold_and_wait_for_user:
+            input("Press Enter to continue...")
+
         for ex_p in ec.experiment.experiment_parameters:
             cmd_stop = ex_p['cmd_stop']
             function = ex_p['function']
@@ -240,8 +245,7 @@ class OsmDriver(object):
                 f'cd / ; sudo sh -c \'{cmd_stop}\' &> {PATH_SHARE}/{PATH_CMD_STOP_LOG} &')
             self._collect_experiment_results(ec, function)
             LOG.info(stdout)
-        # LOG.info("Sleeping for 20 seconds before destroying NS")
-        # time.sleep(20)
+
         self.conn_mgr.client.ns.delete(ec.name, wait=True)
         self.conn_mgr.client.nsd.delete(self.nsd_id)
         LOG.info("Deleted service: {}".format(self.nsi_uuid))
