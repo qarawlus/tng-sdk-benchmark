@@ -20,9 +20,13 @@ source accrc/admin/admin
 neutron net-create mgmt --provider:network_type=vlan --provider:physical_network=public --provider:segmentation_id=500 --shared
 neutron subnet-create --name subnet-mgmt mgmt 10.208.0.0/24 --allocation-pool start=10.208.0.2,end=10.208.0.254 --dns 8.8.8.8 
 
+neutron net-create data --shared
+neutron subnet-create --name subnet-mgmt data 192.168.134.0/24 --allocation-pool start=192.168.134.2,end=192.168.134.254
+ 
 # Create mgmt router
 openstack router create mgmt_rt 
-openstack router add subnet mgmt_rt public-subnet
+openstack router set --external-gateway public
+# openstack router add subnet mgmt_rt public-subnet
 openstack router add subnet mgmt_rt subnet-mgmt
 
 # Remove Quotas
