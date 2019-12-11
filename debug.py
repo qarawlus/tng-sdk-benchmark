@@ -37,10 +37,13 @@ from tngsdk.benchmark import main as bench_main
 
 
 def main():
-    args = ["-p", "examples-osm/peds/ped_example_vnf.yml",
+    args = ["--ped", "examples-osm/peds/ped_example_vnf.yml",
             "--ibbd", "/tmp/bds",
             "--generator", "osm",
-            "--config", ".tng-bench.conf"]
+            "--config", ".tng-bench.conf",
+            "--no-prometheus",
+            # "--no-execution",
+    ]
     bench_main(args)
 
 

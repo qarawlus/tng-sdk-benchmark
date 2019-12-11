@@ -33,8 +33,8 @@
 import requests
 from tngsdk.benchmark.logger import TangoLogger
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
-from tngsdk.osmclient import client
-from tngsdk.osmclient.common.exceptions import ClientException
+from osmclient import client
+from osmclient.common.exceptions import ClientException
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 LOG = TangoLogger.getLogger(__name__)
 
@@ -68,10 +68,48 @@ class OSMConnectionManager(object):
 
     def upload_vnfd_package(self, package_path):
         # re-init client
-        self.client = client.Client(host=self.hostname, sol005=True, **self.kwargs)
-        return self.client.vnfd.create(package_path)
+        try:
+            self.client = client.Client(host=self.hostname, sol005=True, **self.kwargs)
+            return self.client.vnfd.create(package_path)
+        except ClientException as e:
+            LOG.error(e)
+            raise
 
     def upload_nsd_package(self, package_path, package_name=None):
         # re-init client
-        self.client = client.Client(host=self.hostname, sol005=True, **self.kwargs)
-        return self.client.nsd.create(package_path)
+        try:
+            self.client = client.Client(host=self.hostname, sol005=True, **self.kwargs)
+            return self.client.nsd.create(package_path)
+        except ClientException as e:
+            LOG.error(e)
+            raise
+
+    def create_ns(self, nsd_name, nsr_name, account, config=None,
+                  ssh_keys=None, description='default description',
+                  admin_status='ENABLED', wait=False):
+        try:
+            self.client.ns.create(nsd_name, nsr_name, account, config, ssh_keys, description, admin_status, wait)
+        except ClientException as e:
+            LOG.error(e)
+            raise
+
+    def get_nsd(self, name):
+        try:
+            return self.client.nsd.get(name)
+        except ClientException as e:
+            LOG.error(e)
+            raise
+
+    def get_ns(self, name):
+        try:
+            return self.client.ns.get(name)
+        except ClientException as e:
+            LOG.error(e)
+            raise
+
+    def get_vnf(self, name):
+        try:
+            return self.client.vnf.get(name)
+        except ClientException as e:
+            LOG.error(e)
+            raise

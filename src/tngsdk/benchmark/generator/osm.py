@@ -75,7 +75,10 @@ class OSMServiceConfigurationGenerator(
         Returns a list of identifiers / paths to the
         generated service configurations.
 
-        in_pkg_path is the directory that contains the ped and services folder
+        @nsd_pkg_path - specified using 'service_package' in PED file
+        @vnfd_pkg_path - specified using 'function_package' in PED file
+        @func_ex -
+        @service_ex - service experiment configuration object
         """
         if func_ex is not None and len(func_ex):
             # function experiments are not considered
@@ -86,7 +89,7 @@ class OSMServiceConfigurationGenerator(
         # Step -1: Check if path exists
         if not os.path.exists(vnfd_pkg_path):
             LOG.error("Could not load vnfd package referenced in PED: {}"
-                      .format(nsd_pkg_path))
+                      .format(vnfd_pkg_path))
             exit(1)
         if not os.path.exists(nsd_pkg_path):
             LOG.error("Could not load nsd package referenced in PED: {}"
@@ -101,12 +104,20 @@ class OSMServiceConfigurationGenerator(
 
         output_vnfd_streams = []
         output_nsd_stream = None
+        output_mp_vnfd_streams = []
 
         # Right now just one service experiment
+        self.stat_n_ex += 1
         for ex_c in service_ex[0].experiment_configurations:
             filename_ext = f"{ex_c.name}_vnfd.tar.gz"
             file_path = os.path.join(self.args.work_dir, filename_ext)
             output_vnfd_streams.append(tarfile.open(file_path, "w:gz"))
+            self.stat_n_ec += 1
+
+        for mp_i in service_ex[0].measurement_points:
+            filename_ext = "{}_vnfd.tar.gz".format(mp_i.get("name"))
+            file_path = os.path.join(self.args.work_dir, filename_ext)
+            output_mp_vnfd_streams.append(tarfile.open(file_path, "w:gz"))
 
         filename_ext = f"{service_ex[0].name}_nsd.tar.gz"
         file_path = os.path.join(self.args.work_dir, filename_ext)
@@ -117,9 +128,19 @@ class OSMServiceConfigurationGenerator(
         for output_vnfd_pkg in output_vnfd_streams:
             self._update_output_vnfd_pkg(original_vnfd_archive, output_vnfd_pkg, service_ex[0],
                                          output_vnfd_streams.index(output_vnfd_pkg))
-
             # Close and write the contents of the file
             output_vnfd_pkg.close()
+
+        # Step 3a: Create new VNFD files for measurement points
+
+        template_vnfd_mp_archive = tarfile.open(os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "template/osm_vnfd_mp.tar.gz"), 'r:gz')
+        for output_mp_vnfd_pkg in output_mp_vnfd_streams:
+            self._update_output_mp_vnfd_pkg(
+                template_vnfd_mp_archive, output_mp_vnfd_pkg, service_ex[0],
+                output_mp_vnfd_streams.index(output_mp_vnfd_pkg))
+            # Close and write the contents of the file
+            output_mp_vnfd_pkg.close()
 
         # Step 4: Create new NSD file
         # To be implemented here
@@ -137,7 +158,7 @@ class OSMServiceConfigurationGenerator(
                 member_contents = original_vnfd_archive.extractfile(pkg_file)
                 vnfd_contents = yaml.safe_load(member_contents)
 
-                self._configure_vnfd_params(vnfd_contents, service_ex, ec_index, output_vnfd_pkg)
+                self._configure_vnfd_params(vnfd_contents, output_vnfd_pkg, service_ex, ec_index)
 
                 new_vnfd_ti = tarfile.TarInfo(member_name)
                 new_vnfd_stream = yaml.dump(vnfd_contents).encode('utf8')
@@ -146,12 +167,13 @@ class OSMServiceConfigurationGenerator(
                 output_vnfd_pkg.addfile(tarinfo=new_vnfd_ti, fileobj=buffer)
             else:
                 output_vnfd_pkg.addfile(pkg_file, original_vnfd_archive.extractfile(pkg_file))
+        service_ex.experiment_configurations[ec_index].vnfd_package_path = output_vnfd_pkg.name
 
-    def _configure_vnfd_params(self, vnfd_yaml, service_ex, ec_index, output_vnfd_pkg):
+    def _configure_vnfd_params(self, vnfd_yaml, output_vnfd_pkg, service_ex, ec_index):
         """
         Update the YAML VNFD contents
         """
-        vnfd_yaml['vnfd:vnfd-catalog']['vnfd'][0]['name']=service_ex.experiment_configurations[ec_index].name
+        vnfd_yaml['vnfd:vnfd-catalog']['vnfd'][0]['name'] = service_ex.experiment_configurations[ec_index].name
         for pname, pvalue in service_ex.experiment_configurations[ec_index].parameter.items():
             function_type = parse_ec_parameter_key(pname).get("type")
             vnf_type = parse_ec_parameter_key(pname).get("function_name")
@@ -163,9 +185,44 @@ class OSMServiceConfigurationGenerator(
                 if field_name == 'mem_max':
                     # Single VNFD single VDU for now
                     vnfd_yaml['vnfd:vnfd-catalog']['vnfd'][0]['vdu'][0]['vm-flavor']['memory-mb'] = pvalue
-            #else:
-               # LOG.error("Unknown fields in vnfd params")
-        service_ex.experiment_configurations[ec_index].vnfd_package_path = output_vnfd_pkg.name
+            # else:
+                # LOG.error("Unknown fields in vnfd params")
+
+    def _update_output_mp_vnfd_pkg(self, template_mp_vnfd_archive, output_mp_vnfd_pkg, service_ex, mp_index):
+        """
+        Updates the archive streams with data from the template archive
+        """
+        for pkg_file in template_mp_vnfd_archive.getmembers():
+            member_name = pkg_file.name
+            if member_name.endswith(".yaml") or member_name.endswith(".yml"):
+                member_contents = template_mp_vnfd_archive.extractfile(pkg_file)
+                vnfd_contents = yaml.safe_load(member_contents)
+
+                self._configure_mp_vnfd_params(vnfd_contents, service_ex, mp_index)
+
+                new_vnfd_ti = tarfile.TarInfo(member_name)
+                new_vnfd_stream = yaml.dump(vnfd_contents).encode('utf8')
+                new_vnfd_ti.size = len(new_vnfd_stream)
+                buffer = BytesIO(new_vnfd_stream)
+                output_mp_vnfd_pkg.addfile(tarinfo=new_vnfd_ti, fileobj=buffer)
+            else:
+                output_mp_vnfd_pkg.addfile(pkg_file, template_mp_vnfd_archive.extractfile(pkg_file))
+        for ec in service_ex.experiment_configurations:
+            ec.probe_package_paths.append(output_mp_vnfd_pkg.name)
+
+    def _configure_mp_vnfd_params(self, vnfd_yaml, service_ex, mp_index):
+        """
+        Update the YAML VNFD contents
+        """
+        vnfd_yaml['vnfd:vnfd-catalog']['vnfd'][0]['id'] = service_ex.measurement_points[mp_index].get("name")
+        vnfd_yaml['vnfd:vnfd-catalog']['vnfd'][0]['name'] = service_ex.measurement_points[mp_index].get("name")
+        vnfd_yaml['vnfd:vnfd-catalog']['vnfd'][0]['short-name'] = service_ex.measurement_points[mp_index].get("name")
+        vnfd_yaml['vnfd:vnfd-catalog']['vnfd'][0]['vdu'][0]['id'] = service_ex.measurement_points[mp_index].get("name")
+        vnfd_yaml['vnfd:vnfd-catalog']['vnfd'][0]['vdu'][0]['name'] = service_ex.measurement_points[mp_index].get(
+            "name")
+
+        vnfd_yaml['vnfd:vnfd-catalog']['vnfd'][0]['vdu'][0]['image'] = service_ex.measurement_points[mp_index].get(
+            "vm_image")
 
     def _update_output_nsd_pkg(self, original_nsd_archive, output_nsd_stream, service_ex):
         """
@@ -176,10 +233,8 @@ class OSMServiceConfigurationGenerator(
             if member_name.endswith(".yaml") or member_name.endswith(".yml"):
                 member_contents = original_nsd_archive.extractfile(pkg_file)
                 nsd_contents = yaml.safe_load(member_contents)
-
-                self._add_probes_in_nsd(nsd_contents,service_ex)
-                nsd_contents['nsd:nsd-catalog']['nsd'][0]['name']=service_ex.name
-
+                self._add_probes_in_nsd(nsd_contents, service_ex)
+                nsd_contents['nsd:nsd-catalog']['nsd'][0]['name'] = service_ex.name
                 new_nsd_ti = tarfile.TarInfo(member_name)
                 new_nsd_stream = yaml.dump(nsd_contents).encode('utf8')
                 new_nsd_ti.size = len(new_nsd_stream)
@@ -190,7 +245,7 @@ class OSMServiceConfigurationGenerator(
         for ec_index in range(len(service_ex.experiment_configurations)):
             service_ex.experiment_configurations[ec_index].nsd_package_path = output_nsd_stream.name
 
-    def _add_probes_in_nsd(self,nsd_contents,service_ex):
+    def _add_probes_in_nsd(self, nsd_contents, service_ex):
         """
         Updates the nsd file contents by adding probe configuration
         """
@@ -203,24 +258,34 @@ class OSMServiceConfigurationGenerator(
             mp_name = mp.get('name')
             # get mp.vm-name->image #we dont need this as of now
             # Step 1 : Adding constituent vnfds for probes
-            constituent_vnfd.append({"member-vnf-index":max_idx+1, "vnfd-id-ref":mp_name})
+            constituent_vnfd.append({"member-vnf-index": max_idx + 1, "vnfd-id-ref": mp_name})
             # Step 2 : Adding probe vnfd connection point reference to vlds
             vld = nsd_contents['nsd:nsd-catalog']['nsd'][0]['vld']
             for vld_n in vld:
-                if vld_n.get('vim-network-name')=='mgmt':
+                if vld_n.get('vim-network-name') == 'mgmt':
                     # Management Network
                     vnfd_connection_point_ref = vld_n.get('vnfd-connection-point-ref')
-                    vnfd_connection_point_ref.append({'member-vnf-index-ref':max_idx+1, 'vnfd-connection-point-ref':'eth1-mgmt', 'vnfd-id-ref':mp_name})
+                    vnfd_connection_point_ref.append({
+                        'member-vnf-index-ref': max_idx + 1,
+                        'vnfd-connection-point-ref': 'eth1-mgmt',
+                        'vnfd-id-ref': mp_name
+                    })
                 else:
                     # Data Network
                     vnfd_connection_point_ref = vld_n.get('vnfd-connection-point-ref')
-                    vnfd_connection_point_ref.append({'member-vnf-index-ref':max_idx+1, 'vnfd-connection-point-ref':'eth0-data', 'vnfd-id-ref':mp_name})
-            max_idx = max_idx+1
+                    vnfd_connection_point_ref.append({
+                        'member-vnf-index-ref': max_idx + 1,
+                        'vnfd-connection-point-ref': 'eth0-data',
+                        'vnfd-id-ref': mp_name
+                    })
+            max_idx = max_idx + 1
 
     def print_generation_and_packaging_statistics(self):
-        print("-"*80)
+        print("-" * 80)
         print("OSM tng-bench: Experiment generation report")
-        print("-"*80)
-        print("Generated OSM packages for {} experiments with {} configurations.".format(self.stat_n_ex,self.stat_n_ec))
+        print("-" * 80)
+        print("Generated OSM packages for {} experiments with {} configurations.".format(
+            self.stat_n_ex, self.stat_n_ec)
+        )
         print("Total time: %s" % "%.4f" % (time.time() - self.start_time))
-        print("-"*80)
+        print("-" * 80)

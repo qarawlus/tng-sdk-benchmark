@@ -31,18 +31,22 @@
 # partner consortium (www.5gtango.eu).
 from tngsdk.benchmark.pdriver.osm.conn_mgr import OSMConnectionManager
 from tngsdk.benchmark.logger import TangoLogger
-from tngsdk.benchmark.helper import parse_ec_parameter_key
+from tngsdk.benchmark.helper import parse_ec_parameter_key, write_json
+from tngsdk.benchmark.helper import write_yaml
+
 import paramiko
 import time
 import os
 import stat
 import scp
-from tngsdk.benchmark.helper import write_yaml
+import datetime
 LOG = TangoLogger.getLogger(__name__)
 
 PATH_SHARE = "tngbench_share"
 PATH_CMD_START_LOG = "cmd_start.log"
 PATH_CMD_STOP_LOG = "cmd_stop.log"
+WAIT_PADDING_TIME = 3  # FIXME extra time to wait (to have some buffer)
+PATH_EXPERIMENT_TIMES = "experiment_times.json"
 
 
 class OsmDriver(object):
@@ -55,6 +59,8 @@ class OsmDriver(object):
         self.args = args
         self.config = config
         self.conn_mgr = OSMConnectionManager(self.config)
+        self.t_experiment_start = None
+        self.t_experiment_stop = None
         # self.conn_mgr.connect()
         if self.conn_mgr.connect():
             LOG.info("Connection to OSM Established.")
@@ -81,39 +87,62 @@ class OsmDriver(object):
         #     pass
 
     def setup_experiment(self, ec):
-        self.ip_addresses = {}
+        # Uplaod VNFD package
         try:
             self.vnfd_id = self.conn_mgr.upload_vnfd_package(ec.vnfd_package_path)
+            self.probe_vnfd_id = []
+            for probe_path in ec.probe_package_paths:
+                self.probe_vnfd_id.append(self.conn_mgr.upload_vnfd_package(probe_path))
         except Exception:
-            LOG.error("Could not upload vnfd package")
+            LOG.error("Could not upload vnfd packages.")
             exit(1)
             # pass  # TODO Handle properly: In a sophisticated (empty) platform, it should give no error.
+
+        # Uplaod NSD package
         try:
             self.nsd_id = self.conn_mgr.upload_nsd_package(ec.nsd_package_path)
         except Exception:
-            LOG.error("Could not upload nsd package")
+            LOG.error("Could not upload NSD package.")
             exit(1)
             # pass  # TODO Handle properly: In a sophisticated (empty) platform, it should give no error.
 
-        self.nsi_uuid = (self.conn_mgr.client.nsd.get(ec.experiment.name).get('_id'))
-        # Instantiate the NSD
-        # TODO Remove hardcoded VIM account name
-        self.conn_mgr.client.ns.create(self.nsi_uuid, ec.name, 'OS-DS-BF9', wait=True)
+        # Fetch NSD ID to instantiate it
+        try:
+            self.nsi_uuid = (self.conn_mgr.get_nsd(ec.experiment.name).get('_id'))
+        except Exception:
+            LOG.error("Could not fetch NSD '{}'.".format(ec.experiment.name))
+            exit(1)
 
-        ns = self.conn_mgr.client.ns.get(ec.name)  # TODO Remove dependency of null NS instances present in OSM
-        for vnf_ref in ns.get('constituent-vnfr-ref'):
-            vnf_desc = self.conn_mgr.client.vnf.get(vnf_ref)
-            for vdur in vnf_desc.get('vdur'):
-                self.ip_addresses[vdur.get('vdu-id-ref')] = {}
-                for interfaces in vdur.get('interfaces'):
-                    if interfaces.get('mgmt-vnf') is None:
-                        if vdur.get('vdu-id-ref').startswith('mp.'):
-                            self.main_vm_data_ip = interfaces.get('ip-address')
-                        self.ip_addresses[vdur.get('vdu-id-ref')]['data'] = interfaces.get('ip-address')
-                    else:
-                        self.ip_addresses[vdur.get('vdu-id-ref')]['mgmt'] = interfaces.get('ip-address')
-        # print(self.ip_addresses)
-        LOG.info("Instantiated service: {}".format(self.nsi_uuid))
+        # Instantiate the NSD
+        try:
+            self.conn_mgr.create_ns(self.nsi_uuid, ec.name, self.config.get('VIM_name'), wait=True)
+        except Exception:
+            LOG.error("Could not create NS Instance.")
+            exit(1)
+        else:
+            LOG.info("Instantiated service: {}".format(self.nsi_uuid))
+
+        # Fetch IP Addresses of the deployed instances
+        self._get_ip_addresses(ec)
+
+    def _get_ip_addresses(self, ec):
+        self.ip_addresses = {}
+        try:
+            ns = self.conn_mgr.get_ns(ec.name)
+            for vnf_ref in ns.get('constituent-vnfr-ref'):
+                vnf_desc = self.conn_mgr.get_vnf(vnf_ref)
+                for vdur in vnf_desc.get('vdur'):
+                    self.ip_addresses[vdur.get('vdu-id-ref')] = {}
+                    for interfaces in vdur.get('interfaces'):
+                        if interfaces.get('mgmt-vnf') is None:
+                            if not vdur.get('vdu-id-ref').startswith('mp.'):
+                                self.main_vm_data_ip = interfaces.get('ip-address')
+                            self.ip_addresses[vdur.get('vdu-id-ref')]['data'] = interfaces.get('ip-address')
+                        else:
+                            self.ip_addresses[vdur.get('vdu-id-ref')]['mgmt'] = interfaces.get('ip-address')
+        except Exception:
+            LOG.error("Could not fetch IP addresses.")
+            exit(1)
 
     def execute_experiment(self, ec):
 
@@ -132,8 +161,17 @@ class OsmDriver(object):
         time_warmup = int(ec.parameter['ep::header::all::time_warmup'])
         LOG.debug(f'Warmup time: Sleeping for {time_warmup}')
         time.sleep(time_warmup)
+        global PATH_SHARE
+        PATH_SHARE = os.path.join('/', PATH_SHARE)
+        # TODO: Modularize this and remove the for loop.
         for ex_p in ec.experiment.experiment_parameters:
             cmd_start = ex_p['cmd_start']
+            # LIMITATION: This assumes cmd_start is a bash script.
+            cmd_start += f" vnf {self.main_vm_data_ip}"
+            for fn, fn_info in self.ip_addresses.items():
+                if fn.startswith("mp."):
+                    cmd_start += f" {fn} {fn_info['data']}"
+
             function = ex_p['function']
 
             if function.startswith('mp.'):
@@ -143,22 +181,36 @@ class OsmDriver(object):
                 login_uname = vnf_username
                 login_pass = vnf_password
 
+            LOG.info(f"Connecting SSH to {function} at IP:{self.ip_addresses[function]['mgmt']}")
+            timeout = time.time() + 15 * 60  # in seconds
             while not self._ssh_connect(function, self.ip_addresses[function]['mgmt'], username=login_uname,
                                         password=login_pass):
-                # Keep looping until a connection is there
+                # Keep looping until a connection is established
+                time.sleep(15)
+                if time.time() > timeout:
+                    LOG.error("Connection timed out: Could not connect using ssh.")
+                    exit(1)
                 continue
+            LOG.info(f'Creating {PATH_SHARE} folder at {function}')
+            stdin, stdout, stderr = self.ssh_clients[function].exec_command(
+                f'sudo mkdir {PATH_SHARE}')
+            time.sleep(3)
+            stdin, stdout, stderr = self.ssh_clients[function].exec_command(
+                f'sudo chmod 777 {PATH_SHARE}')
+            time.sleep(3)
 
-            LOG.info(f"Executing start command {cmd_start}")
-            global PATH_SHARE
-            PATH_SHARE = os.path.join('/', 'home', login_uname, PATH_SHARE)
+            LOG.info(f"Executing start command {cmd_start} at {function}")
             stdin, stdout, stderr = self.ssh_clients[function].exec_command(
-                f'mkdir {PATH_SHARE}')
-            stdin, stdout, stderr = self.ssh_clients[function].exec_command(
-                f'{cmd_start} &> {PATH_SHARE}/{PATH_CMD_START_LOG} &')
+                f'cd / ; sudo sh -c \'{cmd_start}\' &> {PATH_SHARE}/{PATH_CMD_START_LOG} &')
 
             LOG.info(stdout)
 
     def _ssh_connect(self, function_name, ip_address, username, password):
+        """
+        Connect to SSH server of `function_name` at `ip_address` using `username` and `password`
+        TODO: Handle paramiko level logs, remove unwanted error log messages.
+        """
+
         try:
             self.ssh_clients[function_name] = paramiko.SSHClient()
             self.ssh_clients[function_name].set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -175,10 +227,22 @@ class OsmDriver(object):
         return True
 
     def teardown_experiment(self, ec):
+        """
+        Execute stop commands at VMs and collect logs
+        """
+
         # Sleep for experiment duration
-        experiment_duration = int(ec.parameter['ep::header::all::time_limit'])
-        LOG.info(f'Experiment duration: Sleeping for {experiment_duration} before stopping')
-        time.sleep(experiment_duration)
+        # experiment_duration = int(ec.parameter['ep::header::all::time_limit'])
+        # LOG.info(f'Experiment duration: Sleeping for {experiment_duration} seconds before stopping')
+        self.t_experiment_start = datetime.datetime.now()
+        self._wait_experiment(ec)
+        self.t_experiment_stop = datetime.datetime.now()
+        # time.sleep(experiment_duration)
+
+        # hold execution for manual debugging:
+        if self.args.hold_and_wait_for_user:
+            input("Press Enter to continue...")
+
         for ex_p in ec.experiment.experiment_parameters:
             cmd_stop = ex_p['cmd_stop']
             function = ex_p['function']
@@ -186,33 +250,78 @@ class OsmDriver(object):
             # self.ssh_clients[function].set_missing_host_key_policy(paramiko.AutoAddPolicy())
             LOG.info(f"Executing stop command {cmd_stop}")
             stdin, stdout, stderr = self.ssh_clients[function].exec_command(
-                f'{cmd_stop} &> {PATH_SHARE}/{PATH_CMD_STOP_LOG} &')
+                f'cd / ; sudo sh -c \'{cmd_stop}\' &> {PATH_SHARE}/{PATH_CMD_STOP_LOG} &')
             self._collect_experiment_results(ec, function)
             LOG.info(stdout)
-        LOG.info("Sleeping for 20 before destroying NS")
-        time.sleep(20)
+
         self.conn_mgr.client.ns.delete(ec.name, wait=True)
         self.conn_mgr.client.nsd.delete(self.nsd_id)
-        self.conn_mgr.client.vnfd.delete(self.vnfd_id)
         LOG.info("Deleted service: {}".format(self.nsi_uuid))
+        self.conn_mgr.client.vnfd.delete(self.vnfd_id)
+        LOG.info("Deleted VNFD: {}".format(self.vnfd_id))
+        for probe_vnfd_id_i in self.probe_vnfd_id:
+            self.conn_mgr.client.vnfd.delete(probe_vnfd_id_i)
+        LOG.info("Deleted Probe VNFD: {}".format(self.probe_vnfd_id))
 
-    def teardown_platform(self, ec):
+    def teardown_platform(self):
         # self.conn_mgr.client.vim.delete("trial_vim")
         pass
 
     def instantiate_service(self, uuid):
         pass
 
+    def _store_times(self, path):
+        data = {
+            "experiment_start": str(self.t_experiment_start),
+            "experiment_stop": str(self.t_experiment_stop)
+        }
+        try:
+            LOG.debug("Writing timing data to: {}".format(path))
+            write_json(path, data)
+        except BaseException as ex:
+            LOG.error("Could not write to {}: {}".format(path, ex))
+
     def _collect_experiment_results(self, ec, function):
-        LOG.info("Collecting experiment results ...")
+        """
+        SCP into `function` and collect `PATH_SHARE` folder
+        """
+        LOG.info(f"Collecting experiment results from {function}")
         remote_dir = f'{PATH_SHARE}/'
         # generate result paths
         dst_path = os.path.join(self.args.result_dir, ec.name)
-        # for each container collect files from containers
-        function_dst_path = os.path.join(dst_path, function)
+        # Replace function name and prepend 'osm.' to make sure result directories are unique
+        function_path = f'osm.{function}'
+        # for each vm collect files from containers
+        function_dst_path = os.path.join(dst_path, function_path)
         os.makedirs(function_dst_path, exist_ok=True)
-
+        time.sleep(3)
         local_dir = f'{function_dst_path}/'
         scp_client = scp.SCPClient(self.ssh_clients[function].get_transport())
 
         scp_client.get(remote_dir, local_dir, recursive=True)
+        self._store_times(
+            os.path.join(dst_path, PATH_EXPERIMENT_TIMES))
+
+    def _experiment_wait_time(self, ec):
+        time_limit = int(ec.parameter.get("ep::header::all::time_limit", 0))
+        if time_limit < 1:
+            return time_limit
+        time_limit += WAIT_PADDING_TIME
+        return time_limit
+
+    def _wait_experiment(self, ec, text="Running experiment"):
+        time_limit = self._experiment_wait_time(ec)
+        if time_limit < 1:
+            return  # we don't need to wait
+        self._wait_time(time_limit, "{} '{}'".format(text, ec))
+
+    def _wait_time(self, time_limit, text="Wait"):
+        WAIT_NUMBER_OF_OUTPUTS = 10  # FIXME make configurable
+        if time_limit < 1:
+            return  # we don't need to wait
+        time_slot = int(time_limit / WAIT_NUMBER_OF_OUTPUTS)
+        # wait and print status
+        for i in range(0, WAIT_NUMBER_OF_OUTPUTS):
+            time.sleep(time_slot)
+            LOG.debug("{}\t... {}%"
+                      .format(text, (100 / WAIT_NUMBER_OF_OUTPUTS) * (i + 1)))

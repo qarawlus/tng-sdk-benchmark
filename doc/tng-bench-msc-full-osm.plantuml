@@ -1,0 +1,134 @@
+title tng-bench
+
+activate main
+main->main:parse_args()
+main->main:setup_logging()
+activate main
+main->main:reconfigure_all_tango_loggers()
+deactivate main
+
+main->ProfileManager:__init__()
+activate ProfileManager
+ProfileManager->ProfileManager:getLogger()
+main->ProfileManager:run()
+ProfileManager->ProfileManager:check_rd_existence()
+ProfileManager->ProfileManager:populate_experiments()
+
+activate ProfileManager
+ProfileManager->ProfileManager:_validate_ped_file()
+ProfileManager->ProfileManager:_generate_experiment_specifications()
+activate ProfileManager
+ProfileManager-> OSMServiceExperiment:__init__()
+activate OSMServiceExperiment
+ProfileManager<-- OSMServiceExperiment:return obj
+ProfileManager-> OSMServiceExperiment:populate()
+ProfileManager<-- OSMServiceExperiment:
+deactivate OSMServiceExperiment
+ProfileManager-> OSMFunctionExperiment:__init__()
+activate OSMFunctionExperiment
+ProfileManager<-- OSMFunctionExperiment:return obj
+ProfileManager-> OSMFunctionExperiment:populate()
+ProfileManager<-- OSMFunctionExperiment:return obj
+deactivate OSMFunctionExperiment
+deactivate ProfileManager
+deactivate ProfileManager
+
+ProfileManager->ProfileManager:load_generator()
+activate ProfileManager
+activate OSMServiceConfigurationGenerator
+ProfileManager->OSMServiceConfigurationGenerator:__init__()
+ProfileManager<--OSMServiceConfigurationGenerator: return cgen
+deactivate ProfileManager
+
+ProfileManager->ProfileManager:generate_experiments()
+activate ProfileManager
+ProfileManager->OSMServiceConfigurationGenerator:generate()
+OSMServiceConfigurationGenerator->OSMServiceConfigurationGenerator:_update_output_vnfd_pkg()
+OSMServiceConfigurationGenerator->OSMServiceConfigurationGenerator:_update_output_nsd_pkg()
+ProfileManager<--OSMServiceConfigurationGenerator: return func_ex, service_ex
+alt not args.no_display
+ProfileManager->ProfileManager:print_generation_and_packaging_statistics()
+end
+deactivate ProfileManager
+
+
+ProfileManager->ProfileManager:execute_experiments()
+activate ProfileManager
+ProfileManager->Executor:__init__()
+activate Executor
+Executor->Executor:_load_pdriver()
+activate Executor
+Executor->OSMDriver:__init__()
+activate OSMDriver
+
+OSMDriver->OSMConnectionManager:__init__()
+activate OSMConnectionManager
+
+OSMDriver<--OSMConnectionManager: return obj
+
+
+Executor<--OSMDriver:return obj
+deactivate Executor
+
+ProfileManager<--Executor:return exe
+
+ProfileManager->Executor:setup()
+Executor->OSMDriver:setup_platform()
+Executor<--OSMDriver:
+ProfileManager<--Executor:
+
+ProfileManager->Executor:run()
+Executor->Executor:_write_experiment_configuration()
+Executor->OSMDriver:setup_experiment()
+OSMDriver->OSMConnectionManager:upload_vnfd_package()
+OSMDriver<--OSMConnectionManager:
+OSMDriver->OSMConnectionManager:upload_nsd_package()
+OSMDriver<--OSMConnectionManager:
+OSMDriver->OSMConnectionManager:get_nsd()
+OSMDriver<--OSMConnectionManager:
+OSMDriver->OSMConnectionManager:create_ns()
+OSMDriver<--OSMConnectionManager:
+OSMDriver->OSMDriver: _get_ip_addresses()
+
+Executor<--OSMDriver:
+
+Executor->OSMDriver:execute_experiment
+OSMDriver->OSMDriver:_ssh_connect()
+Executor<--OSMDriver:
+
+Executor->OSMDriver:teardown_experiment()
+OSMDriver->OSMDriver:_collect_experiment_results
+OSMDriver->OSMConnectionManager:client.ns.delete()
+OSMDriver<--OSMConnectionManager:
+OSMDriver->OSMConnectionManager:client.nsd.delete()
+OSMDriver<--OSMConnectionManager:
+OSMDriver->OSMConnectionManager:client.vnfd.delete()
+OSMDriver<--OSMConnectionManager:
+Executor<--OSMDriver:
+
+ProfileManager<--Executor:
+ProfileManager->Executor:teardown()
+Executor->OSMDriver:teardown_platform()
+Executor<--OSMDriver:
+
+ProfileManager<--Executor:
+
+deactivate ProfileManager
+ProfileManager->ProfileManager:process_results()
+activate ProfileManager
+ProfileManager->IetfBmwgResultProcessor:__init__()
+activate IetfBmwgResultProcessor
+ProfileManager<--IetfBmwgResultProcessor:return obj
+ProfileManager->VimemuResultProcessor:__init__()
+activate VimemuResultProcessor
+ProfileManager<--VimemuResultProcessor:return obj
+ProfileManager->IetfBmwgResultProcessor:run()
+ProfileManager<--IetfBmwgResultProcessor:
+ProfileManager->VimemuResultProcessor:run()
+ProfileManager<--VimemuResultProcessor:
+
+deactivate ProfileManager
+ProfileManager->ProfileManager:copy_ped()
+alt not self.args.no_prometheus
+ProfileManager->ProfileManager:stop_prometheus_monitoring()
+end

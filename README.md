@@ -1,4 +1,5 @@
 [![Join the chat at https://gitter.im/sonata-nfv/Lobby](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/sonata-nfv/Lobby)
+[![Build Status](https://travis-ci.org/CN-UPB/tng-sdk-benchmark.svg?branch=dev)](https://travis-ci.org/CN-UPB/tng-sdk-benchmark)
 
 <p align="center"><img src="https://github.com/sonata-nfv/tng-api-gtw/wiki/images/sonata-5gtango-logo-500px.png" /></p>
 
@@ -37,7 +38,21 @@ If you use this tool for your research, publications, or NFV projects, please co
 
 Please follow [this guide](https://github.com/sonata-nfv/tng-sdk-benchmark/wiki/Setup-execution-platform-(vim-emu)) to install and setup tng-sdk-benchmark and a corresponding execution environment.
 
+### OSM Client requirements
+
+The OSM Client built into tng-bench requires the following packages, which can be installed as follows:
+
+```
+apt-get install libcurl4-gnutls-dev libgnutls28-dev 
+```
+
 ## Usage
+
+```
+tng-bench --ped examples-osm/peds/ped_example_vnf.yml \
+	--ibbd /tmp/bds --generator osm \
+	--config .tng-bench.conf
+```
 
 ### Run a benchmarking experiment
 
