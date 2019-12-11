@@ -290,9 +290,9 @@ class OsmDriver(object):
         # generate result paths
         dst_path = os.path.join(self.args.result_dir, ec.name)
         # Replace function name and prepend 'osm.' to make sure result directories are unique
-        function = f'osm.{function}'
+        function_path = f'osm.{function}'
         # for each vm collect files from containers
-        function_dst_path = os.path.join(dst_path, function)
+        function_dst_path = os.path.join(dst_path, function_path)
         os.makedirs(function_dst_path, exist_ok=True)
         time.sleep(3)
         local_dir = f'{function_dst_path}/'
