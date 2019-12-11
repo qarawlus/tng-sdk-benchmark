@@ -75,12 +75,8 @@ class OSMServiceConfigurationGenerator(
         Returns a list of identifiers / paths to the
         generated service configurations.
 
-        in_pkg_path is the directory that contains the ped and services folder
-
-        @nsd_pkg_path - '/home/avi/tng-sdk-benchmark/examples-osm/peds/\
-            ../services/example-ns-1vnf-any/example_ns.tar.gz'
-        @vnfd_pkg_path - '/home/avi/tng-sdk-benchmark/examples-osm/peds/\
-            ../services/example-ns-1vnf-any/example_vnf.tar.gz'
+        @nsd_pkg_path - specified using 'service_package' in PED file
+        @vnfd_pkg_path - specified using 'function_package' in PED file
         @func_ex -
         @service_ex - service experiment configuration object
         """
@@ -100,9 +96,6 @@ class OSMServiceConfigurationGenerator(
                       .format(nsd_pkg_path))
             exit(1)
 
-        # TODO: Actually manipulate the probe VNFD Package
-        # self.probe_package_path = probe_package_path
-
         # Step 1: decompress VNFD and NSD files
         original_vnfd_archive = tarfile.open(vnfd_pkg_path, 'r:gz')
         original_nsd_archive = tarfile.open(nsd_pkg_path, 'r:gz')
@@ -114,10 +107,12 @@ class OSMServiceConfigurationGenerator(
         output_mp_vnfd_streams = []
 
         # Right now just one service experiment
+        self.stat_n_ex += 1
         for ex_c in service_ex[0].experiment_configurations:
             filename_ext = f"{ex_c.name}_vnfd.tar.gz"
             file_path = os.path.join(self.args.work_dir, filename_ext)
             output_vnfd_streams.append(tarfile.open(file_path, "w:gz"))
+            self.stat_n_ec += 1
 
         for mp_i in service_ex[0].measurement_points:
             filename_ext = "{}_vnfd.tar.gz".format(mp_i.get("name"))
@@ -133,17 +128,17 @@ class OSMServiceConfigurationGenerator(
         for output_vnfd_pkg in output_vnfd_streams:
             self._update_output_vnfd_pkg(original_vnfd_archive, output_vnfd_pkg, service_ex[0],
                                          output_vnfd_streams.index(output_vnfd_pkg))
-
             # Close and write the contents of the file
             output_vnfd_pkg.close()
+
         # Step 3a: Create new VNFD files for measurement points
+
         template_vnfd_mp_archive = tarfile.open(os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "template/osm_vnfd_mp.tar.gz"), 'r:gz')
         for output_mp_vnfd_pkg in output_mp_vnfd_streams:
             self._update_output_mp_vnfd_pkg(
                 template_vnfd_mp_archive, output_mp_vnfd_pkg, service_ex[0],
                 output_mp_vnfd_streams.index(output_mp_vnfd_pkg))
-
             # Close and write the contents of the file
             output_mp_vnfd_pkg.close()
 
