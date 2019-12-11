@@ -266,7 +266,9 @@ class OsmDriver(object):
         remote_dir = f'{PATH_SHARE}/'
         # generate result paths
         dst_path = os.path.join(self.args.result_dir, ec.name)
-        # for each container collect files from containers
+        # Replace function name and prepend 'osm.' to make sure result directories are unique
+        function = f'osm.{function}'
+        # for each vm collect files from containers
         function_dst_path = os.path.join(dst_path, function)
         os.makedirs(function_dst_path, exist_ok=True)
         time.sleep(3)
