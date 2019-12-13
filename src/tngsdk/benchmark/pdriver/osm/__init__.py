@@ -259,7 +259,6 @@ class OsmDriver(object):
             # Delete the SSH object all together
             del self.ssh_clients[function]
 
-
         self.conn_mgr.client.ns.delete(ec.name, wait=True)
         self.conn_mgr.client.nsd.delete(self.nsd_id)
         LOG.info("Deleted service: {}".format(self.nsi_uuid))
