@@ -253,12 +253,11 @@ class OsmDriver(object):
                 f'cd / ; sudo sh -c \'{cmd_stop}\' &> {PATH_SHARE}/{PATH_CMD_STOP_LOG} &')
             self._collect_experiment_results(ec, function)
             LOG.info(stdout)
-
-        LOG.info(f'Closing SSH Connection to {function}')
-        # Close the SSH connection to prevent any possible memory leaks from paramiko
-        self.ssh_clients[function].close()
-        # Delete the SSH object all together
-        del self.ssh_clients[function]
+            LOG.info(f'Closing SSH Connection to {function}')
+            # Close the SSH connection to prevent any possible memory leaks from paramiko
+            self.ssh_clients[function].close()
+            # Delete the SSH object all together
+            del self.ssh_clients[function]
 
         self.conn_mgr.client.ns.delete(ec.name, wait=True)
         self.conn_mgr.client.nsd.delete(self.nsd_id)
