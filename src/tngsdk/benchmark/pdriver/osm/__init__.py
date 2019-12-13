@@ -268,6 +268,7 @@ class OsmDriver(object):
         for probe_vnfd_id_i in self.probe_vnfd_id:
             self.conn_mgr.client.vnfd.delete(probe_vnfd_id_i)
         LOG.info("Deleted Probe VNFD: {}".format(self.probe_vnfd_id))
+
     def teardown_platform(self):
         # self.conn_mgr.client.vim.delete("trial_vim")
         pass
