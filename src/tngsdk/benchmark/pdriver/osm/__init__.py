@@ -253,6 +253,11 @@ class OsmDriver(object):
                 f'cd / ; sudo sh -c \'{cmd_stop}\' &> {PATH_SHARE}/{PATH_CMD_STOP_LOG} &')
             self._collect_experiment_results(ec, function)
             LOG.info(stdout)
+            LOG.info(f'Closing SSH Connection to {function}')
+            # Close the SSH connection to prevent any possible memory leaks from paramiko
+            self.ssh_clients[function].close()
+            # Delete the SSH object all together
+            del self.ssh_clients[function]
 
         self.conn_mgr.client.ns.delete(ec.name, wait=True)
         LOG.info("Deleted Service: {}".format(self.nsi_uuid))
@@ -291,8 +296,10 @@ class OsmDriver(object):
         remote_dir = f'{PATH_SHARE}/'
         # generate result paths
         dst_path = os.path.join(self.args.result_dir, ec.name)
-        # for each container collect files from containers
-        function_dst_path = os.path.join(dst_path, function)
+        # Replace function name and prepend 'osm.' to make sure result directories are unique
+        function_path = f'osm.{function}'
+        # for each vm collect files from containers
+        function_dst_path = os.path.join(dst_path, function_path)
         os.makedirs(function_dst_path, exist_ok=True)
         time.sleep(3)
         local_dir = f'{function_dst_path}/'
