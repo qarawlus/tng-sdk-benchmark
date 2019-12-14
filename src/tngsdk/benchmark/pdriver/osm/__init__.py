@@ -260,13 +260,14 @@ class OsmDriver(object):
             del self.ssh_clients[function]
 
         self.conn_mgr.client.ns.delete(ec.name, wait=True)
+        LOG.info("Deleted Service: {}".format(self.nsi_uuid))
         self.conn_mgr.client.nsd.delete(self.nsd_id)
-        LOG.info("Deleted service: {}".format(self.nsi_uuid))
+        LOG.info("Deleted NSD: {}".format(self.nsd_id))
         self.conn_mgr.client.vnfd.delete(self.vnfd_id)
         LOG.info("Deleted VNFD: {}".format(self.vnfd_id))
         for probe_vnfd_id_i in self.probe_vnfd_id:
             self.conn_mgr.client.vnfd.delete(probe_vnfd_id_i)
-        LOG.info("Deleted Probe VNFD: {}".format(self.probe_vnfd_id))
+            LOG.info("Deleted Probe VNFD: {}".format(probe_vnfd_id_i))
 
     def teardown_platform(self):
         # self.conn_mgr.client.vim.delete("trial_vim")
