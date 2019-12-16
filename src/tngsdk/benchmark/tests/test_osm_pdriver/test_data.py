@@ -32,10 +32,3 @@ with open(args_fpath, 'rb') as config_dictionary_file:
 nsd_pkg_path = os.path.join(os.getcwd(), 'examples-osm/services/example-ns-1vnf-any/example_ns.tar.gz')
 vnfd_pkg_path = os.path.join(os.getcwd(), 'examples-osm/services/example-ns-1vnf-any/example_vnf.tar.gz')
 func_ex = list()
-
-def simple_function():
-    a = 2
-    b = 3
-    result = 2*3
-    print('From simple_function', result)
-    return result

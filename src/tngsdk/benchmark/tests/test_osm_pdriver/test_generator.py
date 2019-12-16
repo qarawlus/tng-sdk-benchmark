@@ -52,6 +52,7 @@ Use args from TC1
 @service_ex - service experiment configuration object
 """
 
+
 class TestOSMServiceConfigurationGenerator(unittest.TestCase):
     """
     Test OSMServiceConfigurationGenerator
@@ -90,6 +91,7 @@ class TestOSMServiceConfigurationGenerator(unittest.TestCase):
         actual = OSMServiceConfigurationGenerator(TD.args)
         with self.assertRaises(TypeError) as cm:
             gen = actual.generate()
+            print(gen)
         self.assertRegex(cm.exception.args[0], expected, msg='did not match expected input arguments')
 
     def test_generator_with_4_args(self):
