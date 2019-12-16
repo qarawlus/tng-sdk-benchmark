@@ -18,5 +18,7 @@ script:
   
   # Unit test would go here
   # Run test as sudo as /tmp folder is written
-  - pytest --show-capture all -s -v src/tngsdk/benchmark/tests/test_osm_pdriver
+  - export test_runner=$(whereis pytest)
+  - echo $test_runner
+  - sudo $test_runner -s -v src/tngsdk/benchmark/tests/test_osm_pdriver
   # - pytest -v
