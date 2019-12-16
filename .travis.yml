@@ -1,4 +1,5 @@
 language: python
+cache: pip
 python:
   - '3.6'
 
@@ -18,7 +19,8 @@ script:
   
   # Unit test would go here
   # Run test as sudo as /tmp folder is written
-  - export test_runner=$(whereis pytest)
+  - export test_runner=$(which pytest)
   - echo $test_runner
-  - sudo $test_runner -s -v src/tngsdk/benchmark/tests/test_osm_pdriver
+  - env | grep test
+  - sudo -E $test_runner -s -v src/tngsdk/benchmark/tests/test_osm_pdriver
   # - pytest -v
