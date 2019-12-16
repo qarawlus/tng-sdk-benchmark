@@ -34,7 +34,8 @@
 import unittest
 import logging
 from mock import Mock
-import shutil, os
+import shutil
+import os
 import tngsdk.benchmark.tests.test_osm_pdriver.test_data as TD
 from unittest.mock import patch
 from tngsdk.benchmark.generator.osm \
@@ -62,13 +63,15 @@ class TestOSMServiceConfigurationGenerator(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        # cp fixture to tmp
-        source = os.path.join(os.getcwd(), 'src/tngsdk/benchmark/tests/test_osm_pdriver/fixtures/example_vnf_00000_vnfd.tar.gz')
+        """
+        cp fixture to tmp
+        """
+        file = 'src/tngsdk/benchmark/tests/test_osm_pdriver/fixtures/example_vnf_00000_vnfd.tar.gz'
+        source = os.path.join(os.getcwd(), file)
         destination = "/tmp/tmp3c4i29uk/example_vnf_00000_vnfd.tar.gz"
         os.system("echo 'pg@upb123' | sudo -S mkdir /tmp/tmp3c4i29uk/")
         shutil.copyfile(source, destination)
         print('file copied to /tmp location')
-
 
     def setUp(self):
         pass
