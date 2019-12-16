@@ -31,19 +31,22 @@
 # partner consortium (www.5gtango.eu).
 from tngsdk.benchmark.pdriver.osm.conn_mgr import OSMConnectionManager
 from tngsdk.benchmark.logger import TangoLogger
-from tngsdk.benchmark.helper import parse_ec_parameter_key
+from tngsdk.benchmark.helper import parse_ec_parameter_key, write_json
+from tngsdk.benchmark.helper import write_yaml
+
 import paramiko
 import time
 import os
 import stat
 import scp
-
-from tngsdk.benchmark.helper import write_yaml
+import datetime
 LOG = TangoLogger.getLogger(__name__)
 
 PATH_SHARE = "tngbench_share"
 PATH_CMD_START_LOG = "cmd_start.log"
 PATH_CMD_STOP_LOG = "cmd_stop.log"
+WAIT_PADDING_TIME = 3  # FIXME extra time to wait (to have some buffer)
+PATH_EXPERIMENT_TIMES = "experiment_times.json"
 
 
 class OsmDriver(object):
@@ -56,6 +59,8 @@ class OsmDriver(object):
         self.args = args
         self.config = config
         self.conn_mgr = OSMConnectionManager(self.config)
+        self.t_experiment_start = None
+        self.t_experiment_stop = None
         # self.conn_mgr.connect()
         if self.conn_mgr.connect():
             LOG.info("Connection to OSM Established.")
@@ -227,9 +232,17 @@ class OsmDriver(object):
         """
 
         # Sleep for experiment duration
-        experiment_duration = int(ec.parameter['ep::header::all::time_limit'])
-        LOG.info(f'Experiment duration: Sleeping for {experiment_duration} seconds before stopping')
-        time.sleep(experiment_duration)
+        # experiment_duration = int(ec.parameter['ep::header::all::time_limit'])
+        # LOG.info(f'Experiment duration: Sleeping for {experiment_duration} seconds before stopping')
+        self.t_experiment_start = datetime.datetime.now()
+        self._wait_experiment(ec)
+        self.t_experiment_stop = datetime.datetime.now()
+        # time.sleep(experiment_duration)
+
+        # hold execution for manual debugging:
+        if self.args.hold_and_wait_for_user:
+            input("Press Enter to continue...")
+
         for ex_p in ec.experiment.experiment_parameters:
             cmd_stop = ex_p['cmd_stop']
             function = ex_p['function']
@@ -240,16 +253,21 @@ class OsmDriver(object):
                 f'cd / ; sudo sh -c \'{cmd_stop}\' &> {PATH_SHARE}/{PATH_CMD_STOP_LOG} &')
             self._collect_experiment_results(ec, function)
             LOG.info(stdout)
-        # LOG.info("Sleeping for 20 seconds before destroying NS")
-        # time.sleep(20)
+            LOG.info(f'Closing SSH Connection to {function}')
+            # Close the SSH connection to prevent any possible memory leaks from paramiko
+            self.ssh_clients[function].close()
+            # Delete the SSH object all together
+            del self.ssh_clients[function]
+
         self.conn_mgr.client.ns.delete(ec.name, wait=True)
+        LOG.info("Deleted Service: {}".format(self.nsi_uuid))
         self.conn_mgr.client.nsd.delete(self.nsd_id)
-        LOG.info("Deleted service: {}".format(self.nsi_uuid))
+        LOG.info("Deleted NSD: {}".format(self.nsd_id))
         self.conn_mgr.client.vnfd.delete(self.vnfd_id)
         LOG.info("Deleted VNFD: {}".format(self.vnfd_id))
         for probe_vnfd_id_i in self.probe_vnfd_id:
             self.conn_mgr.client.vnfd.delete(probe_vnfd_id_i)
-        LOG.info("Deleted Probe VNFD: {}".format(self.probe_vnfd_id))
+            LOG.info("Deleted Probe VNFD: {}".format(probe_vnfd_id_i))
 
     def teardown_platform(self):
         # self.conn_mgr.client.vim.delete("trial_vim")
@@ -257,6 +275,17 @@ class OsmDriver(object):
 
     def instantiate_service(self, uuid):
         pass
+
+    def _store_times(self, path):
+        data = {
+            "experiment_start": str(self.t_experiment_start),
+            "experiment_stop": str(self.t_experiment_stop)
+        }
+        try:
+            LOG.debug("Writing timing data to: {}".format(path))
+            write_json(path, data)
+        except BaseException as ex:
+            LOG.error("Could not write to {}: {}".format(path, ex))
 
     def _collect_experiment_results(self, ec, function):
         """
@@ -266,11 +295,39 @@ class OsmDriver(object):
         remote_dir = f'{PATH_SHARE}/'
         # generate result paths
         dst_path = os.path.join(self.args.result_dir, ec.name)
-        # for each container collect files from containers
-        function_dst_path = os.path.join(dst_path, function)
+        # Replace function name and prepend 'osm.' to make sure result directories are unique
+        function_path = f'osm.{function}'
+        # for each vm collect files from containers
+        function_dst_path = os.path.join(dst_path, function_path)
         os.makedirs(function_dst_path, exist_ok=True)
         time.sleep(3)
         local_dir = f'{function_dst_path}/'
         scp_client = scp.SCPClient(self.ssh_clients[function].get_transport())
 
         scp_client.get(remote_dir, local_dir, recursive=True)
+        self._store_times(
+            os.path.join(dst_path, PATH_EXPERIMENT_TIMES))
+
+    def _experiment_wait_time(self, ec):
+        time_limit = int(ec.parameter.get("ep::header::all::time_limit", 0))
+        if time_limit < 1:
+            return time_limit
+        time_limit += WAIT_PADDING_TIME
+        return time_limit
+
+    def _wait_experiment(self, ec, text="Running experiment"):
+        time_limit = self._experiment_wait_time(ec)
+        if time_limit < 1:
+            return  # we don't need to wait
+        self._wait_time(time_limit, "{} '{}'".format(text, ec))
+
+    def _wait_time(self, time_limit, text="Wait"):
+        WAIT_NUMBER_OF_OUTPUTS = 10  # FIXME make configurable
+        if time_limit < 1:
+            return  # we don't need to wait
+        time_slot = int(time_limit / WAIT_NUMBER_OF_OUTPUTS)
+        # wait and print status
+        for i in range(0, WAIT_NUMBER_OF_OUTPUTS):
+            time.sleep(time_slot)
+            LOG.debug("{}\t... {}%"
+                      .format(text, (100 / WAIT_NUMBER_OF_OUTPUTS) * (i + 1)))
