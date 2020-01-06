@@ -257,7 +257,7 @@ class OsmDriver(object):
             # Close the SSH connection to prevent any possible memory leaks from paramiko
             self.ssh_clients[function].close()
             # Delete the SSH object all together
-            del self.ssh_clients[function]
+            self.ssh_clients[function]
 
         self.conn_mgr.client.ns.delete(ec.name, wait=True)
         LOG.info("Deleted Service: {}".format(self.nsi_uuid))
