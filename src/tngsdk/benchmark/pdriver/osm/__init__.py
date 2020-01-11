@@ -302,9 +302,18 @@ class OsmDriver(object):
         os.makedirs(function_dst_path, exist_ok=True)
         time.sleep(3)
         local_dir = f'{function_dst_path}/'
-        scp_client = scp.SCPClient(self.ssh_clients[function].get_transport())
-
-        scp_client.get(remote_dir, local_dir, recursive=True)
+        copy_trials = 0
+        allowed_trials = 10
+        while(copy_trials < allowed_trials):
+            copy_trials = copy_trials + 1
+            try:
+                scp_client = scp.SCPClient(self.ssh_clients[function].get_transport())
+                scp_client.get(remote_dir, local_dir, recursive=True)
+            except Exception:
+                LOG.debug("Exception caught while copying the results. Trying again.")
+                continue
+            else:
+                break
         self._store_times(
             os.path.join(dst_path, PATH_EXPERIMENT_TIMES))
 
