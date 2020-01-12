@@ -304,12 +304,14 @@ class OsmDriver(object):
         local_dir = f'{function_dst_path}/'
         copy_trials = 0
         allowed_trials = 10
-        while(copy_trials < allowed_trials):
+        while(True):
             copy_trials = copy_trials + 1
             try:
                 scp_client = scp.SCPClient(self.ssh_clients[function].get_transport())
                 scp_client.get(remote_dir, local_dir, recursive=True)
             except Exception:
+                if copy_trials == allowed_trials:
+                    raise
                 LOG.debug("Exception caught while copying the results. Trying again.")
                 continue
             else:
