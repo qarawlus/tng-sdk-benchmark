@@ -47,6 +47,7 @@ PATH_CMD_START_LOG = "cmd_start.log"
 PATH_CMD_STOP_LOG = "cmd_stop.log"
 WAIT_PADDING_TIME = 3  # FIXME extra time to wait (to have some buffer)
 PATH_EXPERIMENT_TIMES = "experiment_times.json"
+MAX_RETRIES = 10
 
 
 class OsmDriver(object):
@@ -93,32 +94,17 @@ class OsmDriver(object):
             self.probe_vnfd_id = []
             for probe_path in ec.probe_package_paths:
                 self.probe_vnfd_id.append(self.conn_mgr.upload_vnfd_package(probe_path))
-        except Exception:
-            LOG.error("Could not upload vnfd packages.")
-            exit(1)
-            # pass  # TODO Handle properly: In a sophisticated (empty) platform, it should give no error.
-
-        # Uplaod NSD package
-        try:
             self.nsd_id = self.conn_mgr.upload_nsd_package(ec.nsd_package_path)
-        except Exception:
-            LOG.error("Could not upload NSD package.")
-            exit(1)
-            # pass  # TODO Handle properly: In a sophisticated (empty) platform, it should give no error.
-
-        # Fetch NSD ID to instantiate it
-        try:
             self.nsi_uuid = (self.conn_mgr.get_nsd(ec.experiment.name).get('_id'))
-        except Exception:
-            LOG.error("Could not fetch NSD '{}'.".format(ec.experiment.name))
-            exit(1)
+        except:
+            LOG.error("Could not Upload NSD and VNFD for experiment {}."
+                      "Skipping this experiment.".format(ec.experiment.name))
 
         # Instantiate the NSD
         try:
             self.conn_mgr.create_ns(self.nsi_uuid, ec.name, self.config.get('VIM_name'), wait=True)
-        except Exception:
+        except:
             LOG.error("Could not create NS Instance.")
-            exit(1)
         else:
             LOG.info("Instantiated service: {}".format(self.nsi_uuid))
 
@@ -142,13 +128,13 @@ class OsmDriver(object):
                             self.ip_addresses[vdur.get('vdu-id-ref')]['mgmt'] = interfaces.get('ip-address')
         except Exception:
             LOG.error("Could not fetch IP addresses.")
-            exit(1)
 
     def execute_experiment(self, ec):
 
         """
         Execute the experiment
         """
+        skip_experiment = False
         self.ssh_clients = {}
         vnf_username = self.config.get('main_vm_username')
         vnf_password = self.config.get('main_vm_password')
@@ -188,43 +174,39 @@ class OsmDriver(object):
                 # Keep looping until a connection is established
                 time.sleep(15)
                 if time.time() > timeout:
-                    LOG.error("Connection timed out: Could not connect using ssh.")
-                    exit(1)
+                    LOG.error("Connection timed out: Could not connect using ssh. Skipping experiment")
+                    skip_experiment = True
                 continue
-            LOG.info(f'Creating {PATH_SHARE} folder at {function}')
-            stdin, stdout, stderr = self.ssh_clients[function].exec_command(
-                f'sudo mkdir {PATH_SHARE}')
-            time.sleep(3)
-            stdin, stdout, stderr = self.ssh_clients[function].exec_command(
-                f'sudo chmod 777 {PATH_SHARE}')
-            time.sleep(3)
+            if not skip_experiment:
+                try:
+                    LOG.info(f'Creating {PATH_SHARE} folder at {function}')
+                    stdin, stdout, stderr = self.ssh_clients[function].exec_command(
+                        f'sudo mkdir {PATH_SHARE}')
+                    time.sleep(3)
+                    stdin, stdout, stderr = self.ssh_clients[function].exec_command(
+                        f'sudo chmod 777 {PATH_SHARE}')
+                    time.sleep(3)
 
-            LOG.info(f"Executing start command {cmd_start} at {function}")
-            stdin, stdout, stderr = self.ssh_clients[function].exec_command(
-                f'cd / ; sudo sh -c \'{cmd_start}\' &> {PATH_SHARE}/{PATH_CMD_START_LOG} &')
-
-            LOG.info(stdout)
+                    LOG.info(f"Executing start command {cmd_start} at {function}")
+                    stdin, stdout, stderr = self.ssh_clients[function].exec_command(
+                        f'cd / ; sudo sh -c \'{cmd_start}\' &> {PATH_SHARE}/{PATH_CMD_START_LOG} &')
+                except:
+                    LOG.error("Exception caught during execution of experiment. Skipping experiment.")
 
     def _ssh_connect(self, function_name, ip_address, username, password):
         """
         Connect to SSH server of `function_name` at `ip_address` using `username` and `password`
         TODO: Handle paramiko level logs, remove unwanted error log messages.
         """
-
         try:
             self.ssh_clients[function_name] = paramiko.SSHClient()
             self.ssh_clients[function_name].set_missing_host_key_policy(paramiko.AutoAddPolicy())
             self.ssh_clients[function_name].connect(ip_address, username=username,
                                                     password=password, look_for_keys=False)
-        except TimeoutError:
+        except:  # Have to use bare except here due to the several exceptions that can happen here.
             return False
-        except paramiko.ssh_exception.NoValidConnectionsError:
-            return False
-        except paramiko.ssh_exception.BadAuthenticationType:
-            return False
-        except paramiko.ssh_exception.SSHException:
-            return False
-        return True
+        else:
+            return True
 
     def teardown_experiment(self, ec):
         """
@@ -242,23 +224,27 @@ class OsmDriver(object):
         # hold execution for manual debugging:
         if self.args.hold_and_wait_for_user:
             input("Press Enter to continue...")
-
-        for ex_p in ec.experiment.experiment_parameters:
-            cmd_stop = ex_p['cmd_stop']
-            function = ex_p['function']
-            # self.ssh_clients[function] = paramiko.SSHClient()
-            # self.ssh_clients[function].set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            LOG.info(f"Executing stop command {cmd_stop}")
-            stdin, stdout, stderr = self.ssh_clients[function].exec_command(
-                f'cd / ; sudo sh -c \'{cmd_stop}\' &> {PATH_SHARE}/{PATH_CMD_STOP_LOG} &')
-            self._collect_experiment_results(ec, function)
-            LOG.info(stdout)
-            LOG.info(f'Closing SSH Connection to {function}')
-            # Close the SSH connection to prevent any possible memory leaks from paramiko
-            self.ssh_clients[function].close()
-            # Delete the SSH object all together
-            self.ssh_clients[function]
-
+        for i in range(MAX_RETRIES):
+            try:
+                for ex_p in ec.experiment.experiment_parameters:
+                    cmd_stop = ex_p['cmd_stop']
+                    function = ex_p['function']
+                    # self.ssh_clients[function] = paramiko.SSHClient()
+                    # self.ssh_clients[function].set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                    LOG.info(f"Executing stop command {cmd_stop}")
+                    stdin, stdout, stderr = self.ssh_clients[function].exec_command(
+                        f'cd / ; sudo sh -c \'{cmd_stop}\' &> {PATH_SHARE}/{PATH_CMD_STOP_LOG} &')
+                    self._collect_experiment_results(ec, function)
+                    LOG.info(stdout)
+                    LOG.info(f'Closing SSH Connection to {function}')
+                    # Close the SSH connection to prevent any possible memory leaks from paramiko
+                    self.ssh_clients[function].close()
+                    # Delete the SSH object all together
+                    del self.ssh_clients[function]
+            except:
+                LOG.error("Exception caught during the execution of cmd_stop. Trying again.")
+            else:
+                break
         self.conn_mgr.client.ns.delete(ec.name, wait=True)
         LOG.info("Deleted Service: {}".format(self.nsi_uuid))
         self.conn_mgr.client.nsd.delete(self.nsd_id)
@@ -302,15 +288,12 @@ class OsmDriver(object):
         os.makedirs(function_dst_path, exist_ok=True)
         time.sleep(3)
         local_dir = f'{function_dst_path}/'
-        copy_trials = 0
-        allowed_trials = 10
-        while(copy_trials < allowed_trials):
-            copy_trials = copy_trials + 1
+        for i in range(MAX_RETRIES):
             try:
                 scp_client = scp.SCPClient(self.ssh_clients[function].get_transport())
                 scp_client.get(remote_dir, local_dir, recursive=True)
-            except Exception:
-                LOG.debug("Exception caught while copying the results. Trying again.")
+            except:
+                LOG.error("Exception caught while copying the results. Trying again.")
                 continue
             else:
                 break
