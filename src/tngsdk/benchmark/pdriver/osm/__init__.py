@@ -97,7 +97,7 @@ class OsmDriver(object):
             self.nsd_id = self.conn_mgr.upload_nsd_package(ec.nsd_package_path)
             self.nsi_uuid = (self.conn_mgr.get_nsd(ec.experiment.name).get('_id'))
         except:
-            LOG.error("Could not Upload NSD and VNFD for experiment {}."
+            LOG.error("Could not Upload NSD and VNFD for experiment {}. "
                       "Skipping this experiment.".format(ec.experiment.name))
 
         # Instantiate the NSD
@@ -115,15 +115,23 @@ class OsmDriver(object):
         self.ip_addresses = {}
         try:
             ns = self.conn_mgr.get_ns(ec.name)
+            # fetch all VNFs from NS
             for vnf_ref in ns.get('constituent-vnfr-ref'):
                 vnf_desc = self.conn_mgr.get_vnf(vnf_ref)
+                # fetch all  VDUs from a VNF
                 for vdur in vnf_desc.get('vdur'):
                     self.ip_addresses[vdur.get('vdu-id-ref')] = {}
+                    # fetch all interfaces for this VDU
                     for interfaces in vdur.get('interfaces'):
-                        if interfaces.get('mgmt-vnf') is None:
-                            if not vdur.get('vdu-id-ref').startswith('mp.'):
+                        if interfaces.get('mgmt-vnf') is None:  # if it is not the management interface
+                            if not vdur.get('vdu-id-ref').startswith('mp.'):  # if it is the main VNF
                                 self.main_vm_data_ip = interfaces.get('ip-address')
-                            self.ip_addresses[vdur.get('vdu-id-ref')]['data'] = interfaces.get('ip-address')
+                            if "data1" in interfaces.get("name"):  # if it is "eth0-data1"
+                                self.ip_addresses[vdur.get('vdu-id-ref')]['data1'] = interfaces.get('ip-address')
+                            elif "data2" in interfaces.get("name"):  # if it is "eth0-data2"
+                                self.ip_addresses[vdur.get('vdu-id-ref')]['data2'] = interfaces.get('ip-address')
+                            else:  # else it is "eth0-data"
+                                self.ip_addresses[vdur.get('vdu-id-ref')]['data'] = interfaces.get('ip-address')
                         else:
                             self.ip_addresses[vdur.get('vdu-id-ref')]['mgmt'] = interfaces.get('ip-address')
         except Exception:
