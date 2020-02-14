@@ -56,7 +56,8 @@ class OsmDriver(object):
     """
 
     def __init__(self, args, config):
-        self.main_vm_data_ip = None
+        self.main_vm_data_ip_1 = None
+        self.main_vm_data_ip_2 = None
         self.args = args
         self.config = config
         self.conn_mgr = OSMConnectionManager(self.config)
@@ -125,7 +126,10 @@ class OsmDriver(object):
                     for interfaces in vdur.get('interfaces'):
                         if interfaces.get('mgmt-vnf') is None:  # if it is not the management interface
                             if not vdur.get('vdu-id-ref').startswith('mp.'):  # if it is the main VNF
-                                self.main_vm_data_ip = interfaces.get('ip-address')
+                                if self.main_vm_data_ip_1 is None:
+                                    self.main_vm_data_ip_1 = interfaces.get('ip-address')
+                                else:
+                                    self.main_vm_data_ip_2 = interfaces.get('ip-address')
                             if "data1" in interfaces.get("name"):  # if it is "eth0-data1"
                                 self.ip_addresses[vdur.get('vdu-id-ref')]['data1'] = interfaces.get('ip-address')
                             elif "data2" in interfaces.get("name"):  # if it is "eth0-data2"
@@ -161,7 +165,7 @@ class OsmDriver(object):
         for ex_p in ec.experiment.experiment_parameters:
             cmd_start = ex_p['cmd_start']
             # LIMITATION: This assumes cmd_start is a bash script.
-            cmd_start += f" vnf {self.main_vm_data_ip}"
+            cmd_start += f" vnf {self.main_vm_data_ip_1}"
             for fn, fn_info in self.ip_addresses.items():
                 if fn.startswith("mp."):
                     cmd_start += f" {fn} {fn_info['data']}"
@@ -196,10 +200,10 @@ class OsmDriver(object):
                     time.sleep(3)
                     if "input" in function:
                         stdin, stdout, stderr = self.ssh_clients[function].exec_command(
-                            f'sudo ip route add {self.config.get("data_2_subnet")} dev ens4')
+                            f'sudo ip route add {self.config.get("data_2_subnet")} via {self.main_vm_data_ip_2}')
                     elif "output" in function:
                         stdin, stdout, stderr = self.ssh_clients[function].exec_command(
-                            f'sudo ip route add {self.config.get("data_1_subnet")} dev ens4')
+                            f'sudo ip route add {self.config.get("data_1_subnet")} via {self.main_vm_data_ip_1}')
                     else:
                         stdin, stdout, stderr = self.ssh_clients[function].exec_command(
                             f'sudo sysctl -w net.ipv4.ip_forward=1')
