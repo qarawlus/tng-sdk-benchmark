@@ -288,16 +288,9 @@ class OSMServiceConfigurationGenerator(
                                 'vnfd-connection-point-ref': 'eth0-data1',
                                 'vnfd-id-ref': mp_name
                             })
-                    else:
+                    elif "data2" in vld_n.get("id") or "data2" in vld_n.get("name"):
                         # data2 network: only for OUTPUT probes and VNF
                         if "output" in mp_name:  # mp.output
-                            vnfd_connection_point_ref = vld_n.get('vnfd-connection-point-ref')
-                            vnfd_connection_point_ref.append({
-                                'member-vnf-index-ref': max_idx + 1,
-                                'vnfd-connection-point-ref': 'eth0-data',
-                                'vnfd-id-ref': mp_name
-                            })
-                        elif "input" in mp_name:  # input VNF when switch to single data network is required
                             vnfd_connection_point_ref = vld_n.get('vnfd-connection-point-ref')
                             vnfd_connection_point_ref.append({
                                 'member-vnf-index-ref': max_idx + 1,
@@ -311,6 +304,14 @@ class OSMServiceConfigurationGenerator(
                                 'vnfd-connection-point-ref': 'eth0-data2',
                                 'vnfd-id-ref': mp_name
                             })
+                    else:
+                        # Single data network
+                        vnfd_connection_point_ref = vld_n.get('vnfd-connection-point-ref')
+                        vnfd_connection_point_ref.append({
+                            'member-vnf-index-ref': max_idx + 1,
+                            'vnfd-connection-point-ref': 'eth0-data',
+                            'vnfd-id-ref': mp_name
+                        })
             max_idx = max_idx + 1
 
     def print_generation_and_packaging_statistics(self):
