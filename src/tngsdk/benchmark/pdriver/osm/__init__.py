@@ -194,7 +194,16 @@ class OsmDriver(object):
                     stdin, stdout, stderr = self.ssh_clients[function].exec_command(
                         f'sudo chmod 777 {PATH_SHARE}')
                     time.sleep(3)
-
+                    if "input" in function:
+                        stdin, stdout, stderr = self.ssh_clients[function].exec_command(
+                            f'sudo ip route add {self.config.get("data_2_subnet")} dev ens4 {PATH_SHARE}')
+                    elif "output" in function:
+                        stdin, stdout, stderr = self.ssh_clients[function].exec_command(
+                            f'sudo ip route add {self.config.get("data_1_subnet")} dev ens4 {PATH_SHARE}')
+                    else:
+                        stdin, stdout, stderr = self.ssh_clients[function].exec_command(
+                            f'sudo sysctl -w net.ipv4.ip_forward=1')
+                    time.sleep(3)
                     LOG.info(f"Executing start command {cmd_start} at {function}")
                     stdin, stdout, stderr = self.ssh_clients[function].exec_command(
                         f'cd / ; sudo sh -c \'{cmd_start}\' &> {PATH_SHARE}/{PATH_CMD_START_LOG} &')
