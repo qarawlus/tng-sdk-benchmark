@@ -196,10 +196,10 @@ class OsmDriver(object):
                     time.sleep(3)
                     if "input" in function:
                         stdin, stdout, stderr = self.ssh_clients[function].exec_command(
-                            f'sudo ip route add {self.config.get("data_2_subnet")} dev ens4 {PATH_SHARE}')
+                            f'sudo ip route add {self.config.get("data_2_subnet")} dev ens4')
                     elif "output" in function:
                         stdin, stdout, stderr = self.ssh_clients[function].exec_command(
-                            f'sudo ip route add {self.config.get("data_1_subnet")} dev ens4 {PATH_SHARE}')
+                            f'sudo ip route add {self.config.get("data_1_subnet")} dev ens4')
                     else:
                         stdin, stdout, stderr = self.ssh_clients[function].exec_command(
                             f'sudo sysctl -w net.ipv4.ip_forward=1')
