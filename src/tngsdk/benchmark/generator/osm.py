@@ -297,6 +297,13 @@ class OSMServiceConfigurationGenerator(
                                 'vnfd-connection-point-ref': 'eth0-data',
                                 'vnfd-id-ref': mp_name
                             })
+                        elif "input" in mp_name:  # input VNF when switch to single data network is required
+                            vnfd_connection_point_ref = vld_n.get('vnfd-connection-point-ref')
+                            vnfd_connection_point_ref.append({
+                                'member-vnf-index-ref': max_idx + 1,
+                                'vnfd-connection-point-ref': 'eth0-data',
+                                'vnfd-id-ref': mp_name
+                            })
                         elif "input" not in mp_name:  # vnf
                             vnfd_connection_point_ref = vld_n.get('vnfd-connection-point-ref')
                             vnfd_connection_point_ref.append({
