@@ -153,6 +153,9 @@ class OsmDriver(object):
         probe_username = self.config.get('probe_username')
         probe_password = self.config.get('probe_password')
 
+        # Renew connection to prevent OSM Client connection from expiring
+        self.conn_mgr.connect()
+
         login_uname = None
         login_pass = None
         # Begin executing commands
