@@ -21,3 +21,5 @@ pycurl
 nose2
 # https://github.com/CN-UPB/tng-sdk-benchmark/issues/108
 Werkzeug==0.16.1
+pytest-cov
+mock
