@@ -24,5 +24,7 @@ script:
   - env | grep test
   # - pytest -v    
   # Run tests with code coverage
-  - sudo -E $test_runner --cov=src/tngsdk/benchmark src/tngsdk/benchmark/tests/test_osm_pdriver
+  # - sudo -E $test_runner --cov=src/tngsdk/benchmark src/tngsdk/benchmark/tests/test_osm_pdriver
+  # Debug
+  - sudo -E $test_runner --cov=src/tngsdk/benchmark -v -s src/tngsdk/benchmark/tests/test_osm_pdriver
     
