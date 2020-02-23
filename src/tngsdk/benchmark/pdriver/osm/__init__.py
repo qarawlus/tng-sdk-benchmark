@@ -56,7 +56,7 @@ class OsmDriver(object):
     """
 
     def __init__(self, args, config):
-        
+
         self.args = args
         self.config = config
         self.conn_mgr = OSMConnectionManager(self.config)
